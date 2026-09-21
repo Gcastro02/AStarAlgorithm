@@ -188,3 +188,53 @@ The in-app preview pane renders files outside the project root as static snapsho
 so relative CSS and JS paths did not load and the first screenshot was unstyled text.
 Resolved by running a throwaway local static server for previewing only; the
 deliverable itself still needs no server.
+
+---
+
+## Session 1 (cont.) — Hover oscillation bug
+
+### Turn 5 — Bug report (human)
+
+Reported that moving the cursor near (not yet onto) a map node made the interface
+"freak out by zooming in and out really fast and changing the text really fast."
+Noted the AI might not be able to observe it.
+
+### Turn 5 — Response (AI)
+
+Diagnosed it as a layout feedback loop rather than an animation or rendering fault,
+then measured it in the browser instead of assuming:
+
+- The narration bar and the map were rows of the same CSS grid, with the map sized
+  `1fr`.
+- Hover text of a different line count than the default changed the narration row's
+  height by **40.5px**.
+- That resized the map row, rescaling the SVG and moving the hovered node **20.3px**.
+- 20.3px exceeds the node's 14px hover radius, so the cursor left the node, `mouseout`
+  fired, the text reset, the row shrank, and the node moved back under the cursor.
+  The loop then repeated at frame rate.
+
+Fixes: the narration bar now has a **fixed** height (overflowing internally by
+scrolling rather than by growing), so text can never resize the map; and hover
+handlers now ignore transitions between a node's own child elements.
+
+Verified with the same measurement across five nodes at two viewport widths: node
+displacement is now exactly 0px in every case, including against a deliberately
+absurd 800-word narration string.
+
+### Why this one matters for the report
+
+This bug came from the AI, and it is a good example of the category of mistake these
+tools make. Each individual decision was reasonable — a responsive grid, a narration
+bar that adapts to its content, a generous invisible hover target. The defect lived
+only in the *interaction* between three separately sensible choices, and it could not
+be found by reading any single file.
+
+It also would not have been caught by the AI's own testing. Earlier verification
+simulated hover by dispatching a synthetic `mouseover`, which correctly reported that
+the text updated. A synthetic event does not move a real cursor, so the feedback loop
+never triggered. **The test passed; the feature was broken.** The human caught it in
+about ten seconds by moving a mouse.
+
+The diagnosis and fix, once pointed at, took the AI a few minutes and produced a
+measured before/after rather than a guess. That division — human notices, AI
+measures and repairs — is the honest summary of where the tool is strong.

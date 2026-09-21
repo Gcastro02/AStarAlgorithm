@@ -49,10 +49,15 @@
 
   </aside>
 
-  <div class="narration" id="narration">
-    <strong>The problem.</strong> Drive from Harbor Gate to Summit Plaza as cheaply as
-    possible. The dashed line is the straight-line distance between them &mdash; the
-    estimate A* will start from. Notice it crosses the river where there is no bridge.
+  <!-- Fixed height. If this box can grow, it steals height from the map, the SVG
+       rescales, and any node under the cursor slides away -- which fires mouseout,
+       which shrinks the box again. That loop oscillates at frame rate. -->
+  <div class="narration">
+    <p class="narration-text" id="narration">
+      <strong>The problem.</strong> Drive from Harbor Gate to Summit Plaza as cheaply as
+      possible. The dashed line is the straight-line distance between them &mdash; the
+      estimate A* will start from. Notice it crosses the river where there is no bridge.
+    </p>
   </div>
 
   <div class="controls">

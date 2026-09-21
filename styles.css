@@ -256,17 +256,31 @@ html, body {
 
 /* --------------------------------------------------------- narration bar -- */
 
+/* Height is FIXED, not min-height. The narration text changes on every hover and
+   every algorithm step; if that could change the row height it would resize the
+   map, move nodes out from under the cursor, and cause a hover oscillation loop.
+   Overflow scrolls rather than clips, so nothing is ever lost. */
 .narration {
-  padding: 11px 18px;
+  height: 76px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
   background: var(--panel-2);
   border-top: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.narration-text {
+  margin: 0;
+  width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
   font-size: 13.5px;
   line-height: 1.5;
-  min-height: 46px;
   color: var(--muted);
 }
 
-.narration strong { color: var(--text); font-weight: 600; }
+.narration-text strong { color: var(--text); font-weight: 600; }
 
 /* ---------------------------------------------------------------- controls */
 

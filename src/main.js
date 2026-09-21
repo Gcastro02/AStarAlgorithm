@@ -52,9 +52,15 @@
   const narration = document.getElementById('narration');
   const defaultNarration = narration.innerHTML;
 
+  /* Track which node is hovered so that moving the cursor between a node's own
+     child elements (the fat hit circle, the visible dot, the <title>) does not
+     rewrite the narration on every crossing. */
+  let hoveredId = null;
+
   svg.addEventListener('mouseover', (ev) => {
     const group = ev.target.closest('.node');
-    if (!group) return;
+    if (!group || group.dataset.node === hoveredId) return;
+    hoveredId = group.dataset.node;
     const nd = city.node(group.dataset.node);
     const h = euclidean(nd, goal);
     const roads = city.neighbours(nd.id).length;
@@ -66,7 +72,13 @@
   });
 
   svg.addEventListener('mouseout', (ev) => {
-    if (ev.target.closest('.node')) narration.innerHTML = defaultNarration;
+    const group = ev.target.closest('.node');
+    if (!group) return;
+    /* Ignore moves that land on another part of the same node. */
+    const to = ev.relatedTarget;
+    if (to && to.closest && to.closest('.node') === group) return;
+    hoveredId = null;
+    narration.innerHTML = defaultNarration;
   });
 
   console.log(
