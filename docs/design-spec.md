@@ -303,3 +303,22 @@ SVG over Canvas: we need hover targets, text labels, and CSS transitions on indi
 - **Tie-breaking.** When two nodes have equal `f`, which pops first? Preferring the larger `g` is the standard trick and produces visibly straighter searches. Possibly worth exposing as a toggle, since watching tie-breaking change the search shape is a genuine insight — but it risks clutter. Defer.
 - **Should the heuristic weight slider make the cut?** It was cut from scope in the initial decision. If phases 1–6 land comfortably, adding a `w` multiplier on `h` (where `w > 1` breaks admissibility and visibly yields a worse path) is the highest-value single addition available. Revisit after phase 5.
 - **Mobile layout.** Four panels will not fit a phone. Decide whether to support a stacked layout or simply declare desktop-only.
+
+- **A "new city" button (raised after phase 2, deferred).** Generating a fresh map on demand so the demo is not the same example every time.
+
+  The architecture already allows it: `astar.js` takes a `city` object as a parameter and has no attachment to this particular one, and `renderCity()` draws whatever it is handed. The only structural change needed is making `buildCity()` accept node and edge lists rather than closing over the module-level constants.
+
+  **The hard part is not generating a map, it is generating a good one.** A random graph almost always produces a boring search: with no obstacle between start and goal, the straight-line heuristic is nearly exact, A* walks more or less directly to the goal, and the viewer learns nothing about why any of the machinery exists. Every teaching moment in the current map — the river that makes the heuristic visibly wrong, the cul-de-sac aimed at the goal, the fast road that initially points the wrong way — is deliberate. Randomising without constraints throws all of it away.
+
+  A generator would therefore have to preserve the *structure*, not just the geometry:
+
+  1. Lay out intersections on a jittered grid and connect them planarly (roads that visually cross each other are unreadable), varying density by district.
+  2. Carve a river along a random path and allow exactly two or three bridges.
+  3. Place start and goal on opposite banks, positioned so the straight line between them does **not** pass near a bridge. This is what forces the detour.
+  4. Guarantee at least one dead end pointing at the goal, and at least one fast road that initially leads away from it.
+
+  **The quality gate is the part actually worth building.** A headless verifier already exists, so a candidate map can be generated, validated, *run through A\**, and then scored on whether the resulting search is interesting: does the optimal route cross a bridge, does A* pop at least one dead end, are there several re-parenting events, does A* settle somewhere between a third and three-quarters of the city? Reject and regenerate until it passes. Generate-and-test is far easier to get right than trying to construct a good map directly.
+
+  Generation should be **seeded**, with the seed shown in the UI, so a particular city can be returned to — which matters for grading and for pointing someone at a specific example.
+
+  Sequencing: the hand-authored map stays the default on first load. It is tuned so the first thing a viewer ever sees is the clearest possible case. A randomiser is a "now try another one" after the guided example, not a replacement for it.

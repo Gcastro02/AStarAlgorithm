@@ -324,3 +324,30 @@ strong evidence that the cut feature is the highest-value remaining addition.
 347 events at roughly 749 KB total, holding full state snapshots. Irrelevant at this
 scale, and it buys free step-backward and timeline scrubbing. Snapshot independence
 between adjacent events was verified explicitly rather than assumed.
+
+---
+
+## Session 1 (cont.) — Scope decisions
+
+### Turn 7 — Decisions and a question (human)
+
+Confirmed the heuristic-weight slider stays out of scope for now, to be reconsidered
+later only if it earns its place. Asked whether a "randomise the map" button would be
+possible at some point, explicitly not as a request to build it now.
+
+### Turn 7 — Response (AI)
+
+Recorded the idea in the spec's open questions rather than implementing it.
+
+The AI's substantive point: the architecture already supports swapping in a different
+city almost for free, because `astar.js` takes the city as a parameter and the
+renderer draws whatever it is handed. But generating *a* map is easy and generating a
+*good* one is hard — a random graph usually yields a boring search, because with no
+obstacle between start and goal the straight-line heuristic is nearly exact and A*
+walks almost directly there. Every teaching moment in the current map is deliberate.
+
+Proposed approach: a seeded generator that preserves the structural features (river,
+limited crossings, start and goal on opposite banks, a dead end aimed at the goal),
+combined with a **quality gate** that reuses the phase 2 verifier — generate a
+candidate, run A* on it headlessly, score whether the search is actually interesting,
+and regenerate if not. Generate-and-test rather than direct construction.
