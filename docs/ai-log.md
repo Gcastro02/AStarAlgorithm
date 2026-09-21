@@ -130,3 +130,61 @@ Worth noting for the report: the AI generated this error while writing confident
 well-formatted prose, and did not catch it until forced to write the concrete
 pseudocode that the prose was supposed to describe. The human question, which was
 only a request for clarification and not a challenge, is what triggered the check.
+
+---
+
+## Session 1 (cont.) — Phase 1: the city graph and static map
+
+### Turn 4 — Instruction (human)
+
+Approved the spec and asked to proceed to phase 1.
+
+### Turn 4 — Response (AI)
+
+Built `src/graph.js` (65 intersections, 101 roads), `src/render.js`, `styles.css`,
+`index.html`, and `src/main.js`. Map renders; controls are present but disabled
+pending phase 2.
+
+**Constraint the AI raised before writing code.** ES modules are blocked by CORS over
+`file://`, so an `import`/`export` build would have shown the grader a blank page
+unless they ran a local web server. Since "just open index.html" was the entire
+justification for choosing vanilla JS, the code uses classic `<script>` tags with
+named globals instead. This was caught before implementation rather than after.
+
+### Verification, and a defect the AI found in its own map
+
+The map was checked in a browser. The AI added a geometric validator to
+`validateCity()` that tests every road segment against the river polyline, asserting
+that only the two bridges cross it and that no road passes within half the river's
+drawn width.
+
+That validator immediately failed on one road: the Pier Road cul-de-sac ended 16.3px
+from the river centreline, inside the drawn water. By eye at full-map zoom this was
+invisible. Fixed by moving the node.
+
+This is worth reporting: the AI could not visually inspect its own output reliably
+(the preview pane could not crop-zoom), and rather than guessing, it converted the
+visual question into a geometric assertion that a machine could answer. The check is
+now permanent and will catch the same class of error if the map is edited later.
+
+**A second defect found by testing rather than reading.** Simulating a hover on the
+dead-end node revealed the narration read "1 road meet here." Correct pluralisation of
+the noun, incorrect conjugation of the verb — precisely the kind of error that reads
+as fluent and passes casual review.
+
+### Design details the AI proposed that survived review
+
+- Cheapest-looking route is deliberately not the cheapest: a fast belt road that
+  heads *away* from the goal beats the slow downtown grid that heads toward it. At
+  the start node the belt road has a worse `f` than downtown, so A* will commit to
+  downtown first and have to be talked out of it.
+- The Pier Road cul-de-sac has `h = 365`, far lower than any node on the real route,
+  which guarantees A* will pop it and discover the dead end. The trap is not
+  decorative; the numbers force the search into it.
+
+### Tooling friction
+
+The in-app preview pane renders files outside the project root as static snapshots,
+so relative CSS and JS paths did not load and the first screenshot was unstyled text.
+Resolved by running a throwaway local static server for previewing only; the
+deliverable itself still needs no server.

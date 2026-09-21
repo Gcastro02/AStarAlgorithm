@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A* Search — Interactive Demonstration</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <h1>A* Search</h1>
+    <span class="sub">Finding the cheapest route across Riverford</span>
+    <span class="phase" id="phase-badge">phase 1 &middot; static map</span>
+  </header>
+
+  <main class="map-pane">
+    <svg id="map" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"
+         role="img" aria-label="Map of a fictional city with a river and two bridges"></svg>
+  </main>
+
+  <aside class="side-pane">
+
+    <section class="panel">
+      <h2>The map</h2>
+      <dl class="facts" id="facts"></dl>
+    </section>
+
+    <section class="panel">
+      <h2>Roads <span class="hint">cost = length &times; congestion</span></h2>
+      <div id="legend"></div>
+      <p class="legend-note">
+        Every multiplier is <code>&ge; 1</code>, so no road is ever cheaper than its own
+        straight-line length. That is exactly what makes the crow-flies estimate
+        safe to trust.
+      </p>
+    </section>
+
+    <section class="panel panel--grow">
+      <h2>Priority queue <span class="hint">open set</span></h2>
+      <p class="placeholder" id="queue-placeholder">
+        Arrives in phase 4. This will list every discovered-but-not-yet-expanded
+        intersection, sorted by <em>f</em>, so you can watch the queue reorder
+        itself and see exactly which one A* reaches for next.
+      </p>
+    </section>
+
+  </aside>
+
+  <div class="narration" id="narration">
+    <strong>The problem.</strong> Drive from Harbor Gate to Summit Plaza as cheaply as
+    possible. The dashed line is the straight-line distance between them &mdash; the
+    estimate A* will start from. Notice it crosses the river where there is no bridge.
+  </div>
+
+  <div class="controls">
+    <button id="btn-back" disabled>&larr; Back</button>
+    <button id="btn-step" disabled>Step &rarr;</button>
+    <button id="btn-play" disabled>Play</button>
+    <button id="btn-reset" disabled>Reset</button>
+    <span class="spacer"></span>
+    <span class="status" id="status">algorithm not wired yet &mdash; phase 2</span>
+  </div>
+
+</div>
+
+<ul class="problems is-hidden" id="problems"></ul>
+
+<script src="src/graph.js"></script>
+<script src="src/render.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
