@@ -102,3 +102,31 @@ correction. To be expanded each session.
 - Recommended the wrong problem domain by optimizing for implementation convenience
   over pedagogical value.
 - Reached for a fragile shell-quoting approach before falling back to a simpler tool.
+
+---
+
+## Session 1 (cont.) — Pseudocode panel clarification
+
+### Turn 3 — Question (human)
+
+Asked what the pseudocode panel actually does — whether it highlights as the
+algorithm runs across the map.
+
+### Turn 3 — Response (AI)
+
+Confirmed the behavior and wrote the canonical 25-line pseudocode listing plus an
+explicit event-to-line mapping table into the spec (§6). Identified line 19,
+`tentative_g < g[neighbor]`, as the single most valuable line to display, since the
+RELAX and SKIP events are the same line resolving two opposite ways.
+
+**A real error the question surfaced.** Writing the pseudocode out exposed an
+ordering bug in spec v1: the AI had listed the `CLOSE` event as occurring *after* the
+neighbor loop, when standard A* closes the current node immediately after the goal
+check, before examining neighbors. Because the neighbor loop skips already-closed
+nodes, closing late would have produced an animation that contradicted the pseudocode
+displayed next to it. Corrected in v1.1.
+
+Worth noting for the report: the AI generated this error while writing confident,
+well-formatted prose, and did not catch it until forced to write the concrete
+pseudocode that the prose was supposed to describe. The human question, which was
+only a request for clarification and not a challenge, is what triggered the check.

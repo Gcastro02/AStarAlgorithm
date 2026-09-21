@@ -164,12 +164,72 @@ A step is not one loop iteration. It is one *meaningful event*, so the viewer ca
 
 1. `POP` — take the lowest-`f` node off the queue, mark it current.
 2. `GOAL_CHECK` — is this the goal? (Shown even when the answer is no, because *when* you check matters.)
-3. `EXAMINE_NEIGHBOR` — one event per neighbor, showing the tentative `g` being computed.
-4. `RELAX` / `SKIP` — either we found a cheaper route to that neighbor (rewrite its `g` and parent, animate the pointer flipping) or we did not (say so explicitly).
-5. `CLOSE` — the current node is finished.
+3. `CLOSE` — the current node is finished; its `g` is now final and can never improve.
+4. `EXAMINE_NEIGHBOR` — one event per neighbor, showing the tentative `g` being computed.
+5. `RELAX` / `SKIP` — either we found a cheaper route to that neighbor (rewrite its `g` and parent, animate the pointer flipping) or we did not (say so explicitly).
 6. `DONE` — goal popped; reconstruct the path by walking parent pointers backward, animated one hop at a time.
 
+**Ordering correction (v1.1).** An earlier draft placed `CLOSE` *after* the neighbor
+loop. That is wrong: standard A* adds the current node to the closed set immediately
+after the goal check, before examining any neighbors, because the neighbor loop then
+skips anything already closed. Closing late would make the animation disagree with
+the pseudocode displayed beside it. Corrected above.
+
 Fast-forward buttons ("skip to next POP", "run to completion") keep this from being tedious.
+
+### The pseudocode panel
+
+The panel displays this fixed listing, with exactly one line highlighted at any
+moment, driven by the `pseudocodeLine` field on the current event:
+
+```
+ 1   open <- priority queue containing start
+ 2   g[start] <- 0
+ 3   f[start] <- h(start)
+ 4
+ 5   while open is not empty:
+ 6       current <- open.pop_lowest_f()
+ 7
+ 8       if current == goal:
+ 9           return reconstruct_path(current)
+10
+11       closed.add(current)
+12
+13       for each neighbor of current:
+14           if neighbor in closed:
+15               continue
+16
+17           tentative_g <- g[current] + cost(current, neighbor)
+18
+19           if tentative_g < g[neighbor]:
+20               parent[neighbor] <- current
+21               g[neighbor] <- tentative_g
+22               f[neighbor] <- tentative_g + h(neighbor)
+23               open.push(neighbor, f[neighbor])
+24
+25   return failure
+```
+
+Event-to-line mapping:
+
+| Event | Line | Map shows | Narration |
+| --- | --- | --- | --- |
+| `POP` | 6 | Top queue row flies out; node gains a halo | "Popped Elm & 4th, f=41.2 — the most promising lead." |
+| `GOAL_CHECK` | 8 | Dashed `h` line flashes toward the goal | "Not the goal yet. Keep going." |
+| `CLOSE` | 11 | Node turns solid and muted | "Elm & 4th is settled — its cost of 18.4 can never improve." |
+| `EXAMINE_NEIGHBOR` | 17 | One road lights up; arithmetic appears along it | "Via Elm & 4th, Oak & 2nd would cost 18.4 + 5.7 = 24.1." |
+| `RELAX` | 19–23 | Parent arrow flips; queue re-sorts | "24.1 beats the old 29.7. Rewriting Oak & 2nd's route." |
+| `SKIP` | 19 | Road dims back out | "24.1 is worse than the 21.0 we already have. Ignore it." |
+
+Line 19 is the most important line in the panel. `tentative_g < g[neighbor]` is where
+A* decides whether it has found a better route, and `RELAX` versus `SKIP` is that one
+line resolving two opposite ways. Showing a single line produce two different
+outcomes — with the numbers and the map both reacting — is the clearest available way
+to teach relaxation.
+
+Unvisited nodes hold `g = infinity`, so line 19 is trivially true the first time any
+node is seen. The narration will say "we had no route to Oak & 2nd at all, so
+anything beats nothing" in that case rather than printing an infinity symbol.
 
 ---
 
