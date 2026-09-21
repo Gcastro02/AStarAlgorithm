@@ -87,4 +87,36 @@
     `${problems.length ? problems.length + ' PROBLEM(S)' : 'All self-checks passed.'}`,
     'color:#3fb950;font-weight:bold', 'color:inherit'
   );
+
+  /* -- Phase 2: run the search and prove the answer -----------------------
+     Nothing is drawn from this yet. The point is that the algorithm is done,
+     correct, and produces the event list the UI will consume in phase 3. */
+  const check = verifySearch(city, startId, goalId);
+  const { result, reference, events } = check;
+
+  if (check.failures.length) {
+    console.error('A* VERIFICATION FAILED:', check.failures);
+    problemList.classList.remove('is-hidden');
+    problemList.innerHTML += check.failures.map((f) => `<li>${f}</li>`).join('');
+  } else {
+    console.log(
+      `%cA* verified%c  cost ${result.cost.toFixed(1)} over ${result.path.length} intersections. ` +
+      `Independent Dijkstra agrees (${reference.cost.toFixed(1)}). ` +
+      `A* settled ${result.settled} vs Dijkstra's ${reference.expanded}. ` +
+      `${events.length} events recorded.`,
+      'color:#3fb950;font-weight:bold', 'color:inherit'
+    );
+    console.log('Route:', result.path.map((id) => city.node(id).name).join(' -> '));
+  }
+
+  /* Surface the answer in the facts panel so it is visible without devtools. */
+  document.getElementById('facts').innerHTML +=
+    `<dt>Cheapest route cost</dt><dd class="accent">${result.cost.toFixed(0)}</dd>` +
+    `<dt>Intersections settled</dt><dd>${result.settled} of ${city.nodes.length}</dd>`;
+
+  document.getElementById('status').textContent =
+    `search solved: cost ${result.cost.toFixed(0)}, ${events.length} steps recorded — stepping arrives in phase 3`;
+
+  /* Expose for console poking while building later phases. */
+  window.DEMO = { city, check, events, result };
 })();

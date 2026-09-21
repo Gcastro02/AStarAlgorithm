@@ -238,3 +238,89 @@ about ten seconds by moving a mouse.
 The diagnosis and fix, once pointed at, took the AI a few minutes and produced a
 measured before/after rather than a guess. That division — human notices, AI
 measures and repairs — is the honest summary of where the tool is strong.
+
+---
+
+## Session 1 (cont.) — Phase 2: the search itself
+
+### Turn 6 — Instruction (human)
+
+Approved phase 1 and asked to begin phase 2.
+
+### Turn 6 — Response (AI)
+
+Wrote three files: `src/priorityqueue.js` (binary min-heap with in-place priority
+update), `src/astar.js` (the search, plus an independent Dijkstra and a verifier),
+and a throwaway headless harness that loads the browser scripts into a Node sandbox
+so the algorithm could be tested without a UI.
+
+**Result: A\* returns cost 1265.5. The independent Dijkstra returns 1265.5.** The
+route is the belt road to the North Bridge and then the Skyway, exactly as predicted
+from the map design in phase 1.
+
+### Checks that now run on every page load
+
+Rather than asserting the answer looked right, the AI wrote checks a machine can
+fail:
+
+- A* cost equals the cost from an independent Dijkstra that shares no code with it.
+- The returned path is a real drive: consecutive nodes are genuinely adjacent, and
+  the edge costs sum to the reported total.
+- A* never settles more nodes than Dijkstra.
+- **Once a node is closed its `g` never changes again** — replayed across all 347
+  recorded events. This is precisely the property admissibility is supposed to buy,
+  so it is asserted rather than assumed.
+- The heap's internal invariant is re-checked after every push and pop.
+
+### Design decisions worth recording
+
+- **The queue updates priorities in place** rather than pushing duplicate entries
+  and discarding stale ones. The lazy approach is simpler and more common, but it
+  would show the same intersection listed twice in the queue panel, which is
+  confusing for no benefit at 65 nodes. The display requirement drove the data
+  structure choice.
+- **`snapshot()` sorts a copy.** A heap only guarantees its root is the minimum; its
+  backing array is *not* in sorted order. Rendering the raw array would have shown
+  the viewer a subtly wrong queue — right at the top, wrong below it — which is the
+  kind of error that teaches something false while looking correct.
+- **The goal is tested when popped, not when discovered.** The narration calls this
+  out explicitly, and when the goal first enters the queue the narration says the
+  search cannot stop yet because a cheaper route may still appear.
+
+### An error the AI made and caught in its own measurement
+
+The first verification run reported "A* settled 44 nodes vs Dijkstra's 55, 20% less
+work." That comparison was unfair: A* returns as soon as the goal is *popped* and
+never adds it to the closed set, while the reference Dijkstra counts the goal as
+settled. The AI was comparing 44 against 55 when the honest comparison was 45 against
+55. Added a separate `settled` field and corrected the figure to **18%**.
+
+Small, but it is exactly the kind of off-by-one that makes a benchmark flattering,
+and it was in the AI's own self-congratulatory output.
+
+### A finding to raise with the human rather than fix unilaterally
+
+A*'s pruning advantage on this map is real but **modest: 45 settled versus 55, about
+18%**. The river forces any search to explore the west bank thoroughly, and at 65
+nodes there is limited room for the heuristic to show off. The nodes A* skips are all
+east-side filler.
+
+Separately, a sweep of the heuristic weight (the slider that was cut from scope)
+produced a much stronger result:
+
+| weight | cost | settled | optimal? |
+| --- | --- | --- | --- |
+| 0 (= Dijkstra) | 1265.5 | 54 | yes |
+| 1 (normal A*) | 1265.5 | 44 | yes |
+| 2 | 1265.5 | 31 | yes |
+| 3 | 1648.2 | 33 | **no — 30% worse route** |
+
+At w=3 the heuristic overestimates, admissibility breaks, and the demo would *show*
+a visibly worse route rather than merely asserting that one is possible. This is
+strong evidence that the cut feature is the highest-value remaining addition.
+
+### Performance note
+
+347 events at roughly 749 KB total, holding full state snapshots. Irrelevant at this
+scale, and it buys free step-backward and timeline scrubbing. Snapshot independence
+between adjacent events was verified explicitly rather than assumed.
