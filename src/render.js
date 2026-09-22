@@ -101,10 +101,11 @@ function renderCity(svg, city, options = {}) {
 
   /* -- Intersections ------------------------------------------------------ */
   const nodeEls = new Map();
+  const fLabels = new Map();
   for (const nd of city.nodes) {
     const role = nd.id === startId ? 'start' : nd.id === goalId ? 'goal' : 'plain';
     const group = svgEl('g', {
-      class: `node node--${role}`,
+      class: `node node--${role} node--unvisited`,
       'data-node': nd.id,
       transform: `translate(${nd.x},${nd.y})`,
     }, layers.nodes);
@@ -112,6 +113,11 @@ function renderCity(svg, city, options = {}) {
     /* Invisible fat circle so hovering a 5px dot is not an act of precision. */
     svgEl('circle', { r: 14, class: 'node-hit' }, group);
     svgEl('circle', { r: role === 'plain' ? 5 : 9, class: 'node-dot' }, group);
+
+    /* f value, filled in during paint. Created once so stepping is a text
+       assignment rather than DOM construction. */
+    const f = svgEl('text', { class: 'node-f', x: 0, y: -11, 'text-anchor': 'middle' }, group);
+    fLabels.set(nd.id, f);
 
     const degree = city.neighbours(nd.id).length;
     svgEl('title', {}, group).textContent =
@@ -136,7 +142,85 @@ function renderCity(svg, city, options = {}) {
     text.textContent = LABEL_TEXT[id] || nd.name;
   }
 
-  return { layers, nodeEls, edgeEls, startId, goalId };
+  return { layers, nodeEls, edgeEls, fLabels, startId, goalId };
+}
+
+/* ---------------------------------------------------------------------------
+ * paintEvent — the whole UI, as a pure function of one algorithm snapshot.
+ *
+ * Nothing here is incremental and nothing is undone. Every element's class is
+ * recomputed from scratch on each call, which is why stepping backward needs no
+ * special handling at all: painting events[i-1] is the same operation as
+ * painting events[i+1]. At 65 nodes and 101 roads this costs nothing.
+ * -------------------------------------------------------------------------*/
+function paintEvent(view, city, event) {
+  const goal = city.node(view.goalId);
+
+  const openEntries = new Map(event.open.map((entry) => [entry.id, entry]));
+  const closed = new Set(event.closed);
+  const onPath = event.path ? new Set(event.path) : null;
+
+  /* Edges of the final answer, and edges of the search tree A* has built so
+     far (each node's link back to the parent it was cheapest reached from). */
+  const pathEdges = new Set();
+  if (event.path) {
+    for (let i = 0; i < event.path.length - 1; i++) {
+      const edge = city.edgeBetween(event.path[i], event.path[i + 1]);
+      if (edge) pathEdges.add(edge.index);
+    }
+  }
+
+  const treeEdges = new Set();
+  for (const [child, parentId] of Object.entries(event.parent)) {
+    const edge = city.edgeBetween(child, parentId);
+    if (edge) treeEdges.add(edge.index);
+  }
+
+  /* -- Nodes -------------------------------------------------------------- */
+  for (const nd of city.nodes) {
+    const classes = ['node'];
+    if (nd.id === view.startId) classes.push('node--start');
+    if (nd.id === view.goalId) classes.push('node--goal');
+
+    if (onPath && onPath.has(nd.id)) classes.push('node--path');
+    else if (nd.id === event.current) classes.push('node--current');
+    else if (closed.has(nd.id)) classes.push('node--closed');
+    else if (openEntries.has(nd.id)) classes.push('node--open');
+    else classes.push('node--unvisited');
+
+    /* The neighbour under consideration this step gets its own ring, so the
+       viewer can see which of several roads is being priced right now. */
+    if (nd.id === event.neighbour) classes.push('node--neighbour');
+
+    view.nodeEls.get(nd.id).setAttribute('class', classes.join(' '));
+
+    /* f = g + h, shown for anything with a known route. Consistent for open
+       and closed nodes alike: it is always "estimated total trip through here". */
+    const label = view.fLabels.get(nd.id);
+    const gValue = event.g[nd.id];
+    if (Number.isFinite(gValue)) {
+      label.textContent = Math.round(gValue + euclidean(nd, goal));
+      label.setAttribute('class', closed.has(nd.id) ? 'node-f node-f--closed' : 'node-f');
+    } else {
+      label.textContent = '';
+    }
+  }
+
+  /* -- Roads -------------------------------------------------------------- */
+  for (const edge of city.edges) {
+    const classes = ['road', `road--${edge.type}`];
+    if (pathEdges.has(edge.index)) classes.push('road--path');
+    else if (treeEdges.has(edge.index)) classes.push('road--tree');
+    if (edge.index === event.edge) classes.push('road--examining');
+    view.edgeEls.get(edge.index).setAttribute('class', classes.join(' '));
+  }
+
+  /* -- The heuristic, drawn from wherever the search currently stands ------ */
+  const existing = view.layers.overlay.querySelector('.h-line');
+  if (existing) existing.remove();
+  if (event.current && !event.path) {
+    drawHeuristicLine(view, city, event.current, view.goalId);
+  }
 }
 
 /**

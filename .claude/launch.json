@@ -4,11 +4,7 @@
     {
       "name": "astar-preview",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "C:\\Users\\geral\\AppData\\Local\\Temp\\claude\\C--Users-geral-OneDrive-Documents-claude-projects\\5e9a07a5-52fa-472d-b634-e1a78f5759d3\\scratchpad\\dev-server.js",
-        "C:\\Users\\geral\\OneDrive\\Documents\\claude projects\\astar-demo",
-        "5173"
-      ],
+      "runtimeArgs": ["tools/dev-server.js", ".", "5173"],
       "port": 5173
     }
   ]

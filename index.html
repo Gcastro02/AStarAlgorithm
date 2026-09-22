@@ -13,7 +13,7 @@
   <header class="topbar">
     <h1>A* Search</h1>
     <span class="sub">Finding the cheapest route across Riverford</span>
-    <span class="phase" id="phase-badge">phase 2 &middot; algorithm verified</span>
+    <span class="phase" id="phase-badge">phase 3 &middot; stepping</span>
   </header>
 
   <main class="map-pane">
@@ -60,13 +60,27 @@
     </p>
   </div>
 
+  <!-- Fixed height, and the status text cannot wrap. Same reasoning as the
+       narration bar: anything in this column that can change height will
+       resize the map and move nodes out from under the cursor. -->
   <div class="controls">
-    <button id="btn-back" disabled>&larr; Back</button>
-    <button id="btn-step" disabled>Step &rarr;</button>
-    <button id="btn-play" disabled>Play</button>
-    <button id="btn-reset" disabled>Reset</button>
-    <span class="spacer"></span>
-    <span class="status" id="status">algorithm not wired yet &mdash; phase 2</span>
+    <div class="controls-row controls-row--scrub">
+      <input type="range" id="scrub" class="scrub" min="0" max="0" value="0"
+             aria-label="Timeline position">
+      <span class="status" id="status">step 1 of 1</span>
+    </div>
+    <div class="controls-row">
+      <button id="btn-reset" title="Back to the start (Home)">&#8676;</button>
+      <button id="btn-back" title="Previous step (left arrow)">&larr; Back</button>
+      <button id="btn-step" class="is-primary" title="Next step (right arrow)">Step &rarr;</button>
+      <button id="btn-nextpop" title="Skip to the next expansion (N)">Next pop &#8677;</button>
+      <button id="btn-play" title="Play / pause (space)">Play</button>
+      <button id="btn-end" title="Run to completion (End)">Run to end</button>
+      <span class="spacer"></span>
+      <label class="speed-label" for="speed">speed</label>
+      <input type="range" id="speed" class="speed" min="100" max="1050" step="50" value="600"
+             aria-label="Playback speed">
+    </div>
   </div>
 
 </div>
@@ -77,6 +91,7 @@
 <script src="src/priorityqueue.js"></script>
 <script src="src/astar.js"></script>
 <script src="src/render.js"></script>
+<script src="src/controls.js"></script>
 <script src="src/main.js"></script>
 </body>
 </html>

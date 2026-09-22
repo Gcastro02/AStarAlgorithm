@@ -351,3 +351,65 @@ limited crossings, start and goal on opposite banks, a dead end aimed at the goa
 combined with a **quality gate** that reuses the phase 2 verifier — generate a
 candidate, run A* on it headlessly, score whether the search is actually interesting,
 and regenerate if not. Generate-and-test rather than direct construction.
+
+---
+
+## Session 1 (cont.) — Phase 3: stepping and map state
+
+### Turn 8 — Instruction (human)
+
+Approved phase 2 and asked to begin phase 3.
+
+### Turn 8 — Response (AI)
+
+Added `src/controls.js` (timeline player, keyboard shortcuts) and `paintEvent()` in
+`render.js`, plus search-state colours, on-map `f` labels, a timeline scrubber, a
+speed slider, and a "next pop" skip button.
+
+`paintEvent()` recomputes every node and road class from scratch on each call.
+Nothing is incremental and nothing is undone, which is the whole reason stepping
+backward needs no special handling.
+
+### The architecture claim, tested rather than asserted
+
+Phase 0 claimed that emitting full state snapshots would make step-backward free and
+correct. That is easy to say and easy to get subtly wrong, so it was tested by
+serialising every node class, every road class, every `f` label, the heuristic line
+and the narration text, then comparing:
+
+- Arriving at an index **forward** vs **stepping backward into it** from further
+  ahead: identical at indices 1, 57, 100, 201 and 300.
+- Scrubbing straight to index 123 vs pressing step 123 times: identical.
+
+The regression check promised after the hover bug was also re-run: map height and
+node positions are unchanged across eight sampled steps, so adding three new
+dynamic readouts did not reintroduce the layout oscillation. Both the controls bar
+and the narration bar have fixed heights for this reason, with the status text
+prevented from wrapping.
+
+### Two bugs the AI wrote and then found by testing
+
+**1. Every keyboard shortcut was dead.** The handler began
+`if (ev.target.matches('input, textarea, select')) return;`. When a keydown occurs
+with nothing focused, `ev.target` is the *document*, which has no `.matches()`
+method — so the call threw and killed the handler before it did anything. Fixed with
+an `instanceof Element` guard.
+
+Notable because the code looks completely ordinary. It is a real pattern, copied
+faithfully, with an unstated precondition the AI did not check.
+
+**2. Space bar would have toggled play twice.** A clicked button keeps keyboard
+focus, so pressing space afterwards both re-activates that button and fires the
+global play/pause shortcut. The two cancel out and playback appears frozen. Fixed by
+blurring buttons after activation.
+
+Neither bug was visible by reading the code, and the second would have been
+intermittent — it only bites after the user clicks a button before using the
+keyboard.
+
+### A counting inconsistency, again
+
+The status bar read "44 settled" at the end while the facts panel read 45 — the same
+goal-popped-but-never-closed off-by-one corrected in phase 2, reappearing in a new
+place because the fix had been applied to the result object but not to the per-event
+display. Corrected.
