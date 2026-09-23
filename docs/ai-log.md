@@ -413,3 +413,67 @@ The status bar read "44 settled" at the end while the facts panel read 45 — th
 goal-popped-but-never-closed off-by-one corrected in phase 2, reappearing in a new
 place because the fix had been applied to the result object but not to the per-event
 display. Corrected.
+
+---
+
+## Session 1 (cont.) — Phase 4: priority queue and node inspector
+
+### Turn 9 — Instruction (human)
+
+Approved phase 3 and asked to begin phase 4.
+
+### Turn 9 — Response (AI)
+
+Added `src/panels.js` with the priority queue panel, the node inspector, and the map
+key. Restructured the layout first: the map key moved onto the map as a collapsible
+overlay and the map statistics moved into the header, freeing the whole 380px side
+column for the panels that change every step — and leaving room for phase 5's
+pseudocode panel without another rebuild.
+
+Inspector features a proportional `f = g + h` bar. The proportions are the teaching
+point: near the start `h` dominates and the estimate is mostly guesswork; at the goal
+`h` is 0 and the bar is entirely `g`, so the number is entirely fact.
+
+### The queue panel, cross-checked against the algorithm
+
+Rather than eyeballing the panel, every displayed row was compared against the event
+snapshot: row order versus queue order, displayed `f` versus stored `f`, `g + h = f`
+for each row, and each stored `h` against a freshly recomputed Euclidean distance.
+**Zero mismatches**, and the list is genuinely sorted ascending.
+
+This also surfaced a nice detail in the demo itself: at step 172, North Bridge sits
+at `f = 1073` and the Pier Road cul-de-sac at `f = 1076`. The trap is second in the
+queue, three units behind the bridge — the map design is working exactly as intended.
+
+### A bug avoided rather than shipped
+
+While writing the hover handler for the queue, the AI recognised the same shape as
+the earlier oscillation bug: hovering a row changes the focus, a focus change
+triggers a repaint, and a repaint rebuilt the list's `innerHTML` — destroying the
+very element under the cursor and recreating it, which can fire another
+mouseout/mouseover cycle.
+
+Split into two operations: `renderQueue()` rebuilds rows only when the algorithm
+state actually changes, and `updateQueueFocus()` toggles a class for pure focus
+changes. Verified by checking that the row element under the cursor survives a hover
+as the same object.
+
+Worth noting for the report as a contrast with the earlier failure. The AI did not
+recognise this hazard the first time and shipped a bug the human had to find; the
+second time, having been shown the pattern, it recognised the same shape in different
+code before shipping. The recognition did not generalise on its own — it generalised
+after a concrete failure.
+
+### A bug found by testing
+
+Clicking a node to pin it showed "hovering" rather than "pinned", because you are
+necessarily hovering the node you just clicked and the hover check came first. The
+click therefore appeared to do nothing until the cursor moved away. Reordered the
+check.
+
+### Layout stability
+
+Re-ran the standing regression check with three more panels updating every step:
+map height and node positions are single-valued across eight sampled steps, and the
+inspector's height is fixed at 232px regardless of content, so a long intersection
+name cannot reflow the column.

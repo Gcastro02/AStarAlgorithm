@@ -153,7 +153,7 @@ function renderCity(svg, city, options = {}) {
  * special handling at all: painting events[i-1] is the same operation as
  * painting events[i+1]. At 65 nodes and 101 roads this costs nothing.
  * -------------------------------------------------------------------------*/
-function paintEvent(view, city, event) {
+function paintEvent(view, city, event, focusId) {
   const goal = city.node(view.goalId);
 
   const openEntries = new Map(event.open.map((entry) => [entry.id, entry]));
@@ -191,6 +191,7 @@ function paintEvent(view, city, event) {
     /* The neighbour under consideration this step gets its own ring, so the
        viewer can see which of several roads is being priced right now. */
     if (nd.id === event.neighbour) classes.push('node--neighbour');
+    if (nd.id === focusId) classes.push('node--focused');
 
     view.nodeEls.get(nd.id).setAttribute('class', classes.join(' '));
 
@@ -246,22 +247,4 @@ function drawHeuristicLine(view, city, fromId, goalId) {
   label.textContent = `h = ${euclidean(from, goal).toFixed(0)} as the crow flies`;
 }
 
-/**
- * Build the legend from the road table, so it can never drift out of sync
- * with the costs the algorithm actually uses.
- */
-function renderLegend(container, city) {
-  container.innerHTML = '';
-  const entries = Object.entries(city.roadTypes);
-  for (const [key, road] of entries) {
-    const row = document.createElement('div');
-    row.className = 'legend-row';
-    row.innerHTML =
-      `<svg class="legend-swatch" viewBox="0 0 34 12" aria-hidden="true">` +
-      `<line x1="1" y1="6" x2="33" y2="6" class="road road--${key}" stroke-width="${road.width}"/></svg>` +
-      `<span class="legend-name">${road.label}</span>` +
-      `<span class="legend-cost">x${road.congestion.toFixed(1)}</span>`;
-    row.title = road.note;
-    container.appendChild(row);
-  }
-}
+/* The map key and legend live in panels.js, alongside the other panels. */

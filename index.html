@@ -13,38 +13,47 @@
   <header class="topbar">
     <h1>A* Search</h1>
     <span class="sub">Finding the cheapest route across Riverford</span>
-    <span class="phase" id="phase-badge">phase 3 &middot; stepping</span>
+    <span class="stats" id="stats"></span>
+    <span class="phase" id="phase-badge">phase 4 &middot; queue &amp; inspector</span>
   </header>
 
   <main class="map-pane">
     <svg id="map" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"
          role="img" aria-label="Map of a fictional city with a river and two bridges"></svg>
+
+    <!-- Map key, floated over the map so the side column is free for the
+         panels that change every step. Collapsible, because it necessarily
+         covers part of the city. -->
+    <div class="map-key" id="map-key">
+      <button class="key-toggle" id="key-toggle" type="button" aria-expanded="true"
+              title="Show or hide the map key">Key</button>
+      <div class="key-body" id="key-body">
+        <div class="key-section">
+          <h3>Search state</h3>
+          <div id="key-states"></div>
+        </div>
+        <div class="key-section">
+          <h3>Roads <span class="key-hint">cost = length &times; congestion</span></h3>
+          <div id="legend"></div>
+          <p class="key-note">
+            Every multiplier is <code>&ge;1</code>, so no road is cheaper than its
+            straight-line length. That is what makes the crow-flies estimate safe.
+          </p>
+        </div>
+      </div>
+    </div>
   </main>
 
   <aside class="side-pane">
 
-    <section class="panel">
-      <h2>The map</h2>
-      <dl class="facts" id="facts"></dl>
-    </section>
-
-    <section class="panel">
-      <h2>Roads <span class="hint">cost = length &times; congestion</span></h2>
-      <div id="legend"></div>
-      <p class="legend-note">
-        Every multiplier is <code>&ge; 1</code>, so no road is ever cheaper than its own
-        straight-line length. That is exactly what makes the crow-flies estimate
-        safe to trust.
-      </p>
+    <section class="panel panel--inspector">
+      <h2>Node inspector <span class="hint" id="insp-source">follows the search</span></h2>
+      <div id="inspector"></div>
     </section>
 
     <section class="panel panel--grow">
-      <h2>Priority queue <span class="hint">open set</span></h2>
-      <p class="placeholder" id="queue-placeholder">
-        Arrives in phase 4. This will list every discovered-but-not-yet-expanded
-        intersection, sorted by <em>f</em>, so you can watch the queue reorder
-        itself and see exactly which one A* reaches for next.
-      </p>
+      <h2>Priority queue <span class="hint" id="queue-count"></span></h2>
+      <div id="queue"></div>
     </section>
 
   </aside>
@@ -60,9 +69,7 @@
     </p>
   </div>
 
-  <!-- Fixed height, and the status text cannot wrap. Same reasoning as the
-       narration bar: anything in this column that can change height will
-       resize the map and move nodes out from under the cursor. -->
+  <!-- Fixed height, and the status text cannot wrap. Same reasoning as above. -->
   <div class="controls">
     <div class="controls-row controls-row--scrub">
       <input type="range" id="scrub" class="scrub" min="0" max="0" value="0"
@@ -91,6 +98,7 @@
 <script src="src/priorityqueue.js"></script>
 <script src="src/astar.js"></script>
 <script src="src/render.js"></script>
+<script src="src/panels.js"></script>
 <script src="src/controls.js"></script>
 <script src="src/main.js"></script>
 </body>

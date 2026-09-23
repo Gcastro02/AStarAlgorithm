@@ -213,6 +213,15 @@ html, body {
 
 .node:hover .node-dot { filter: brightness(1.35); }
 
+/* The node the inspector is currently describing, whether reached by hovering
+   the map or clicking a row in the queue. */
+.node--focused .node-dot {
+  stroke: var(--neighbour);
+  stroke-width: 2.5;
+}
+
+.node--focused .node-f { fill: var(--neighbour); }
+
 /* f values on the map. Small, and only present once a node has a route. */
 .node-f {
   fill: var(--open);
@@ -303,36 +312,279 @@ html, body {
   font-style: italic;
 }
 
-/* Map facts readout (phase 1). */
-.facts { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 12.5px; }
-.facts dt { color: var(--muted); }
-.facts dd { margin: 0; font-family: var(--mono); text-align: right; }
-.facts dd.accent { color: var(--heur); }
+/* -- Topbar stats ----------------------------------------------------------- */
 
-/* Legend. */
-.legend-row {
-  display: grid;
-  grid-template-columns: 38px 1fr auto;
-  align-items: center;
-  gap: 9px;
-  padding: 3px 0;
-  font-size: 12.5px;
+.stats {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--dim);
+  margin-left: 4px;
 }
 
-.legend-swatch { width: 34px; height: 12px; }
-.legend-name { color: var(--text); }
-.legend-cost { font-family: var(--mono); color: var(--muted); font-size: 12px; }
+.stats b { color: var(--muted); font-weight: 600; }
 
-.legend-note {
-  margin-top: 9px;
+/* -- Map key (floated over the map) ----------------------------------------- */
+
+.map-key {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  width: 218px;
+  pointer-events: none;
+}
+
+.key-toggle {
+  pointer-events: auto;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: #101825f2;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.key-toggle:hover { color: var(--text); background: #1b2536f2; }
+
+.key-body {
+  padding: 11px 13px;
+  background: #101825f2;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  backdrop-filter: blur(3px);
+}
+
+.map-key.is-collapsed .key-body { display: none; }
+
+.key-section + .key-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.map-key h3 {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.key-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--dim);
+  font-size: 10px;
+}
+
+.key-row {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.key-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  justify-self: center;
+  border: 1.5px solid var(--node-edge);
+}
+
+.key-dot--unvisited { background: var(--node); }
+.key-dot--open      { background: var(--open); }
+.key-dot--current   { background: var(--current); }
+.key-dot--closed    { background: var(--closed); }
+.key-dot--path      { background: var(--pathcol); }
+
+.key-swatch { width: 30px; height: 10px; }
+.key-cost { font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+
+.key-note {
+  margin: 8px 0 0;
+  color: var(--dim);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.key-note code { color: var(--muted); font-family: var(--mono); }
+
+/* -- Node inspector ---------------------------------------------------------- */
+
+.panel--inspector { height: 232px; }
+
+.insp-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.insp-state {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  margin-bottom: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.insp-state--open    { color: var(--open); }
+.insp-state--closed  { color: #a99bf0; }
+.insp-state--current { color: var(--current); }
+.insp-state--path    { color: var(--pathcol); }
+
+/* f = g + h, as proportions. Near the start h dominates and the estimate is
+   mostly guesswork; near the goal g dominates and it is mostly fact. */
+.ghbar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--line);
+  margin-bottom: 11px;
+}
+
+.ghbar-g { background: var(--open); }
+.ghbar-h { background: var(--heur); }
+.ghbar--unknown { opacity: 0.35; }
+
+.insp-nums {
+  display: grid;
+  grid-template-columns: 18px 46px 1fr;
+  align-items: baseline;
+  gap: 3px 8px;
+  margin: 0;
+}
+
+.sym {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sym--g { color: var(--open); }
+.sym--h { color: var(--heur); }
+.sym--f { color: var(--text); }
+
+.insp-nums .val {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: right;
+  color: var(--text);
+}
+
+.insp-nums .val--f { font-weight: 700; }
+
+.insp-nums .note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--dim);
+  line-height: 1.35;
+}
+
+.insp-from {
+  margin-top: 10px;
   padding-top: 9px;
   border-top: 1px solid var(--line);
-  color: var(--dim);
   font-size: 11.5px;
-  line-height: 1.5;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.legend-note code { color: var(--muted); font-family: var(--mono); }
+.insp-from strong { color: var(--text); font-weight: 600; }
+
+/* -- Priority queue ---------------------------------------------------------- */
+
+.q-row {
+  display: grid;
+  grid-template-columns: 17px 1fr auto 40px;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 6px;
+  margin-bottom: 2px;
+  font: inherit;
+  text-align: left;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.q-row:hover { background: #1b2536; }
+
+.q-rank {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  text-align: right;
+}
+
+.q-name {
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.q-parts {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.q-plus { opacity: 0.5; margin: 0 1px; }
+
+.q-f {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  text-align: right;
+  color: var(--text);
+}
+
+/* The top row is not decoration: it is literally what comes off next. */
+.q-row.is-next {
+  background: #10283c;
+  border-color: #1f4a6b;
+  color: var(--text);
+}
+
+.q-row.is-next .q-rank { color: var(--open); }
+.q-row.is-next .q-f { color: var(--open); font-weight: 700; }
+
+.q-row.is-focused { border-color: #3f4a63; }
+
+@keyframes q-flash {
+  from { background: #2a4a2f; }
+  to   { background: transparent; }
+}
+
+.q-row.is-changed { animation: q-flash 900ms ease-out; }
+.q-row.is-changed .q-f { color: var(--pathcol); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  .q-row.is-changed { animation: none; }
+}
 
 /* --------------------------------------------------------- narration bar -- */
 
@@ -478,3 +730,16 @@ input[type="range"]:focus-visible { box-shadow: 0 0 0 3px #2b558066; }
 
 .problems li { margin: 2px 0; }
 .problems.is-hidden { display: none; }
+
+.q-note {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  background: #10281f;
+  border: 1px solid #1d4a38;
+  border-radius: 6px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #9fdcc4;
+}
+
+.q-note strong { color: var(--pathcol); font-weight: 700; }

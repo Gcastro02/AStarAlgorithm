@@ -12,23 +12,25 @@
 
   /* -- Self-checks before drawing anything -------------------------------- */
   const problemList = document.getElementById('problems');
-  const problems = validateCity(city);
   const showProblems = (list) => {
     if (!list.length) return;
     problemList.classList.remove('is-hidden');
     problemList.innerHTML += list.map((p) => `<li>${p}</li>`).join('');
   };
+
+  const problems = validateCity(city);
   if (problems.length) {
     showProblems(problems);
     console.error('City validation failed:', problems);
   }
 
-  /* -- Draw the static city ----------------------------------------------- */
+  /* -- Draw the static city ------------------------------------------------ */
   const svg = document.getElementById('map');
   const view = renderCity(svg, city, { startId, goalId });
+  renderStateKey(document.getElementById('key-states'));
   renderLegend(document.getElementById('legend'), city);
 
-  /* -- Run and verify the search ------------------------------------------ */
+  /* -- Run and verify the search ------------------------------------------- */
   const check = verifySearch(city, startId, goalId);
   const { result, reference, events } = check;
 
@@ -45,38 +47,11 @@
     );
   }
 
-  /* -- Readouts ------------------------------------------------------------ */
-  const crowFlies = euclidean(city.node(startId), city.node(goalId));
-  const facts = [
-    ['Intersections', city.nodes.length],
-    ['Roads', city.edges.length],
-    ['River crossings', city.edges.filter((e) => e.type === 'bridge').length],
-    ['Straight-line start &rarr; goal', crowFlies.toFixed(0), true],
-    ['Cheapest route cost', result.cost.toFixed(0), true],
-    ['Intersections settled', `${result.settled} of ${city.nodes.length}`],
-  ];
-  document.getElementById('facts').innerHTML = facts
-    .map(([label, value, accent]) =>
-      `<dt>${label}</dt><dd class="${accent ? 'accent' : ''}">${value}</dd>`)
-    .join('');
+  document.getElementById('stats').innerHTML =
+    `<b>${city.nodes.length}</b> intersections &middot; <b>${city.edges.length}</b> roads &middot; ` +
+    `cheapest route <b>${result.cost.toFixed(0)}</b>`;
 
-  /* -- Narration ----------------------------------------------------------
-     Hovering a node temporarily replaces the step narration; leaving it puts
-     the step narration back. So the current step's text is kept in a variable
-     rather than read back out of the DOM. */
-  const narration = document.getElementById('narration');
-  let stepNarration = '';
-  let hoveredId = null;
-
-  const showNarration = (html) => { narration.innerHTML = html; };
-
-  /* -- The player ---------------------------------------------------------- */
-  const SHORT_LABEL = {
-    INIT: 'init', POP: 'pop', GOAL_CHECK: 'goal?', CLOSE: 'close',
-    EXAMINE_NEIGHBOR: 'examine', RELAX: 'relax', SKIP: 'skip',
-    SKIP_CLOSED: 'skip (settled)', DONE: 'done', EXHAUSTED: 'no route',
-  };
-
+  /* -- Element handles ------------------------------------------------------ */
   const els = {
     back: document.getElementById('btn-back'),
     step: document.getElementById('btn-step'),
@@ -87,20 +62,73 @@
     scrub: document.getElementById('scrub'),
     speed: document.getElementById('speed'),
     status: document.getElementById('status'),
+    narration: document.getElementById('narration'),
+    inspector: document.getElementById('inspector'),
+    inspSource: document.getElementById('insp-source'),
+    queue: document.getElementById('queue'),
+    queueCount: document.getElementById('queue-count'),
   };
 
+  const SHORT_LABEL = {
+    INIT: 'init', POP: 'pop', GOAL_CHECK: 'goal?', CLOSE: 'close',
+    EXAMINE_NEIGHBOR: 'examine', RELAX: 'relax', SKIP: 'skip',
+    SKIP_CLOSED: 'skip (settled)', DONE: 'done', EXHAUSTED: 'no route',
+  };
+
+  /* -- Focus -----------------------------------------------------------------
+     The inspector normally follows the search. Hovering a node, or clicking a
+     queue row, pins it to that node instead until the pin is released. */
+  let pinnedId = null;
+  let hoveredId = null;
+
+  const focusId = () => hoveredId || pinnedId || defaultFocus(player.event);
+
+  /* The queue list is rebuilt only when the algorithm state changes. A pure
+     focus change (hover, pin) just toggles a class, because rebuilding the
+     list would destroy the row under the cursor and recreate it. */
+  let renderedIndex = -1;
+
+  const repaint = () => {
+    const event = player.event;
+    const focus = focusId();
+
+    paintEvent(view, city, event, focus);
+    renderInspector(els.inspector, city, event, focus, goalId);
+
+    if (player.index !== renderedIndex) {
+      renderQueue(els.queue, city, event, focus);
+      renderedIndex = player.index;
+    } else {
+      updateQueueFocus(els.queue, focus);
+    }
+
+    /* You are normally hovering the very node you just clicked, so check the
+       pin first -- otherwise clicking appears to do nothing until the cursor
+       moves away. */
+    els.inspSource.textContent =
+      pinnedId && (hoveredId === null || hoveredId === pinnedId)
+        ? 'pinned — click again to release'
+        : hoveredId
+          ? 'hovering'
+          : 'follows the search';
+
+    els.queueCount.textContent = event.open.length
+      ? `${event.open.length} waiting, sorted by f`
+      : 'empty';
+  };
+
+  /* -- The player ----------------------------------------------------------- */
   const player = createPlayer(events, (event, index, api) => {
-    paintEvent(view, city, event);
+    repaint();
 
-    stepNarration = `<strong>${SHORT_LABEL[event.type] || event.type}.</strong> ${event.narration}`;
-    if (hoveredId === null) showNarration(stepNarration);
+    els.narration.innerHTML =
+      `<strong>${SHORT_LABEL[event.type] || event.type}.</strong> ${event.narration}`;
 
-    /* The goal is popped but never added to the closed set, so once we reach it
-       closed.size undercounts by one. Same correction as result.settled. */
+    /* The goal is popped but never added to the closed set, so once we reach
+       it closed.size undercounts by one. Same correction as result.settled. */
     const settled = event.expanded + (event.isGoal || event.path ? 1 : 0);
     els.status.textContent =
-      `${index + 1}/${events.length} · ${SHORT_LABEL[event.type] || event.type} · ` +
-      `${settled} settled`;
+      `${index + 1}/${events.length} · ${SHORT_LABEL[event.type] || event.type} · ${settled} settled`;
 
     if (els.scrub.value !== String(index)) els.scrub.value = String(index);
     els.play.textContent = api.playing ? 'Pause' : 'Play';
@@ -113,36 +141,13 @@
   });
 
   bindControls(player, els);
-  player.goTo(0);
 
-  /* -- Hover inspection ---------------------------------------------------- */
+  /* -- Hovering the map ----------------------------------------------------- */
   svg.addEventListener('mouseover', (ev) => {
     const group = ev.target.closest('.node');
     if (!group || group.dataset.node === hoveredId) return;
     hoveredId = group.dataset.node;
-
-    const nd = city.node(hoveredId);
-    const event = player.event;
-    const h = euclidean(nd, city.node(goalId));
-    const g = event.g[nd.id];
-    const parentId = event.parent[nd.id];
-    const isClosed = event.closed.includes(nd.id);
-    const queued = event.open.find((entry) => entry.id === nd.id);
-
-    let state;
-    if (isClosed) state = 'settled — its cost is final';
-    else if (queued) state = 'in the queue, waiting';
-    else state = 'not yet discovered';
-
-    showNarration(
-      `<strong>${nd.name}</strong> — ${state}. ` +
-      (Number.isFinite(g)
-        ? `g = ${Math.round(g)} (known cost to get here), ` +
-          `h = ${Math.round(h)} (straight-line guess for the rest), ` +
-          `f = ${Math.round(g + h)}.` +
-          (parentId ? ` Best route so far arrives from ${city.node(parentId).name}.` : '')
-        : `No route to it yet, so g = ∞. Its h would be ${Math.round(h)}.`)
-    );
+    repaint();
   });
 
   svg.addEventListener('mouseout', (ev) => {
@@ -151,11 +156,56 @@
     const to = ev.relatedTarget;
     if (to && to.closest && to.closest('.node') === group) return;
     hoveredId = null;
-    showNarration(stepNarration);
+    repaint();
   });
 
+  /* Clicking a node pins it, so you can step forward and watch one particular
+     intersection's numbers change. */
+  svg.addEventListener('click', (ev) => {
+    const group = ev.target.closest('.node');
+    if (!group) return;
+    pinnedId = pinnedId === group.dataset.node ? null : group.dataset.node;
+    repaint();
+  });
+
+  /* -- Clicking a queue row ------------------------------------------------ */
+  els.queue.addEventListener('click', (ev) => {
+    const row = ev.target.closest('.q-row');
+    if (!row) return;
+    pinnedId = pinnedId === row.dataset.node ? null : row.dataset.node;
+    repaint();
+  });
+
+  /* Hovering a queue row highlights that intersection on the map -- the link
+     between an abstract queue position and a real place. */
+  els.queue.addEventListener('mouseover', (ev) => {
+    const row = ev.target.closest('.q-row');
+    if (!row || row.dataset.node === hoveredId) return;
+    hoveredId = row.dataset.node;
+    repaint();
+  });
+
+  els.queue.addEventListener('mouseleave', () => {
+    if (!hoveredId) return;
+    hoveredId = null;
+    repaint();
+  });
+
+  /* -- Map key --------------------------------------------------------------
+     It necessarily covers part of the city, so it can be folded away. */
+  const mapKey = document.getElementById('map-key');
+  const keyToggle = document.getElementById('key-toggle');
+  keyToggle.addEventListener('click', () => {
+    const collapsed = mapKey.classList.toggle('is-collapsed');
+    keyToggle.setAttribute('aria-expanded', String(!collapsed));
+    keyToggle.textContent = collapsed ? 'Key ▸' : 'Key';
+    keyToggle.blur();
+  });
+
+  player.goTo(0);
+
   /* Expose for console poking while building later phases. */
-  window.DEMO = { city, view, check, events, result, player };
+  window.DEMO = { city, view, check, events, result, player, repaint };
 
   console.log(
     `%cRiverford loaded%c  ${city.nodes.length} intersections, ${city.edges.length} roads. ` +
