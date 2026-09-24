@@ -188,3 +188,62 @@ function renderLegend(container, city) {
        </div>`)
     .join('');
 }
+
+/* ---------------------------------------------------------------------------
+ * Pseudocode panel.
+ *
+ * Built once, then only classes change. Rebuilding 25 lines on every step
+ * would churn the DOM for nothing and would fight the scroll position.
+ * -------------------------------------------------------------------------*/
+
+const escapeHtml = (text) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function renderPseudocode(container) {
+  container.innerHTML = PSEUDOCODE
+    .map((text, i) => {
+      const n = i + 1;
+      return `<div class="pc-line" data-line="${n}">` +
+             `<span class="pc-num">${n}</span>` +
+             `<code class="pc-text">${escapeHtml(text) || '&nbsp;'}</code>` +
+             `<span class="pc-verdict"></span>` +
+             `</div>`;
+    })
+    .join('');
+}
+
+/**
+ * Light the line (or block of lines) the current event is executing.
+ *
+ * `verdict` is the detail that earns this panel its place. Lines 8 and 19 are
+ * branches, and the same line resolves two opposite ways on different steps:
+ * line 19 is RELAX when true and SKIP when false. Labelling the branch
+ * outcome turns "here is where we are" into "here is the decision, and here is
+ * how it just went".
+ */
+function highlightPseudocode(container, event) {
+  const first = event.line;
+  const last = event.lineEnd || event.line;
+
+  for (const row of container.querySelectorAll('.pc-line')) {
+    const n = Number(row.dataset.line);
+    row.classList.toggle('is-active', n === first);
+    row.classList.toggle('is-block', n > first && n <= last);
+    const badge = row.querySelector('.pc-verdict');
+    if (n === first && event.verdict !== undefined) {
+      badge.textContent = event.verdict ? 'true' : 'false';
+      badge.className = `pc-verdict is-${event.verdict ? 'true' : 'false'}`;
+    } else {
+      badge.textContent = '';
+      badge.className = 'pc-verdict';
+    }
+  }
+
+  /* Keep the active line in view WITHOUT scrollIntoView, which would also
+     scroll ancestors and can jerk the whole layout. */
+  const active = container.querySelector('.pc-line.is-active');
+  if (!active) return;
+  const target = active.offsetTop - (container.clientHeight - active.offsetHeight) / 2;
+  const max = container.scrollHeight - container.clientHeight;
+  container.scrollTop = Math.max(0, Math.min(target, max));
+}

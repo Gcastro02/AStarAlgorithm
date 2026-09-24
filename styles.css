@@ -743,3 +743,83 @@ input[type="range"]:focus-visible { box-shadow: 0 0 0 3px #2b558066; }
 }
 
 .q-note strong { color: var(--pathcol); font-weight: 700; }
+
+/* -- Pseudocode panel -------------------------------------------------------- */
+
+.panel--code {
+  height: 226px;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 10px;
+}
+
+.pc {
+  /* Positioned so that each line's offsetTop is measured from THIS box.
+     Without it, offsetTop is relative to the nearest positioned ancestor and
+     the auto-scroll arithmetic silently uses page coordinates. */
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 16px;
+  /* Scroll position is driven by code; hide the bar to avoid a stray scrollbar
+     appearing and disappearing as the active line moves. */
+  scrollbar-width: none;
+}
+
+.pc::-webkit-scrollbar { width: 0; height: 0; }
+
+.pc-line {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 0 0;
+  border-left: 2px solid transparent;
+  border-radius: 0 3px 3px 0;
+  color: var(--dim);
+  white-space: pre;
+}
+
+.pc-num {
+  text-align: right;
+  font-size: 9.5px;
+  color: #3f4a5c;
+  user-select: none;
+}
+
+.pc-text { font: inherit; }
+
+/* The line executing right now. */
+.pc-line.is-active {
+  background: #1b3350;
+  border-left-color: var(--open);
+  color: var(--text);
+}
+
+.pc-line.is-active .pc-num { color: var(--open); }
+
+/* The rest of the block that runs as a consequence. */
+.pc-line.is-block {
+  background: #16283c;
+  
+  border-left-color: #2b4a6b;
+  color: var(--muted);
+}
+
+/* Branch outcome. Line 19 is RELAX when true and SKIP when false -- the same
+   line resolving two opposite ways is the single most instructive thing this
+   panel can show. */
+.pc-verdict {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.pc-verdict.is-true  { color: #7ee8b4; background: #10321f; }
+.pc-verdict.is-false { color: #f2a08f; background: #3a1a16; }

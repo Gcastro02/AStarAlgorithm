@@ -29,6 +29,7 @@
   const view = renderCity(svg, city, { startId, goalId });
   renderStateKey(document.getElementById('key-states'));
   renderLegend(document.getElementById('legend'), city);
+  renderPseudocode(document.getElementById('pseudocode'));
 
   /* -- Run and verify the search ------------------------------------------- */
   const check = verifySearch(city, startId, goalId);
@@ -67,6 +68,8 @@
     inspSource: document.getElementById('insp-source'),
     queue: document.getElementById('queue'),
     queueCount: document.getElementById('queue-count'),
+    pseudocode: document.getElementById('pseudocode'),
+    pcHint: document.getElementById('pc-hint'),
   };
 
   const SHORT_LABEL = {
@@ -101,6 +104,11 @@
     } else {
       updateQueueFocus(els.queue, focus);
     }
+
+    highlightPseudocode(els.pseudocode, event);
+    els.pcHint.textContent = event.lineEnd && event.lineEnd !== event.line
+      ? `lines ${event.line}–${event.lineEnd}`
+      : `line ${event.line}`;
 
     /* You are normally hovering the very node you just clicked, so check the
        pin first -- otherwise clicking appears to do nothing until the cursor

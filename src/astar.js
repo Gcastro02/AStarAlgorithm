@@ -102,12 +102,13 @@ function runAStar(city, startId, goalId, options = {}) {
   /* -- Initialise --------------------------------------------------------- */
   const h0 = h(startId);
   open.addOrUpdate(startId, h0, 0, h0);
-  emit(EVENT.INIT, 3,
+  /* Lines 1-3 all run here: seed the queue, set g, set f. */
+  emit(EVENT.INIT, 1,
     `Start at ${name(startId)}. Its g is 0 — we are already here, so it has cost ` +
     `nothing to reach. Its h is ${num(h0)}, the straight-line distance to ` +
     `${name(goalId)}. So f = 0 + ${num(h0)} = ${num(h0)}: our first guess at the ` +
     `total trip. Every other intersection is still unknown, with g = ∞.`,
-    { current: startId });
+    { current: startId, lineEnd: 3 });
 
   /* -- Main loop ---------------------------------------------------------- */
   while (!open.isEmpty()) {
@@ -132,7 +133,7 @@ function runAStar(city, startId, goalId, options = {}) {
         `This is ${name(goalId)} — and it came off the queue with the lowest f of ` +
         `anything remaining. Every other route still under consideration already ` +
         `costs more than this one. So this route is optimal, and we can stop.`,
-        { current, isGoal: true });
+        { current, isGoal: true, verdict: true });
 
       const path = [];
       for (let node = goalId; node !== undefined; node = parent.get(node)) path.push(node);
@@ -163,7 +164,7 @@ function runAStar(city, startId, goalId, options = {}) {
     emit(EVENT.GOAL_CHECK, 8,
       `Not ${name(goalId)} yet, so we carry on. Note that A* only checks for the ` +
       `goal here, when a node is popped — not when it is first discovered.`,
-      { current, isGoal: false });
+      { current, isGoal: false, verdict: false });
 
     /* -- Close it: its cost is now final ---------------------------------- */
     closed.add(current);
@@ -179,7 +180,7 @@ function runAStar(city, startId, goalId, options = {}) {
         emit(EVENT.SKIP_CLOSED, 14,
           `${name(neighbour)} is already settled — we proved its cheapest cost ` +
           `earlier, so there is nothing to check. Skip it.`,
-          { current, neighbour, edge: edge.index });
+          { current, neighbour, edge: edge.index, lineEnd: 15 });
         continue;
       }
 
@@ -224,13 +225,16 @@ function runAStar(city, startId, goalId, options = {}) {
           current, neighbour, edge: edge.index,
           tentativeG, previousG, newF: fN, previousF, hOfNeighbour: hN,
           reparented: wasKnown,
+          /* The whole if-body runs, not just the test. */
+          lineEnd: 23,
+          verdict: true,
         });
       } else {
         emit(EVENT.SKIP, 19,
           `No better. ${num(tentativeG)} is not cheaper than the ${num(previousG)} ` +
           `we already have for ${name(neighbour)}, so we leave it alone. The route ` +
           `we already knew stays.`,
-          { current, neighbour, edge: edge.index, tentativeG, previousG });
+          { current, neighbour, edge: edge.index, tentativeG, previousG, verdict: false });
       }
     }
   }

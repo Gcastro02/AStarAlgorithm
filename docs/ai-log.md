@@ -477,3 +477,51 @@ Re-ran the standing regression check with three more panels updating every step:
 map height and node positions are single-valued across eight sampled steps, and the
 inspector's height is fixed at 232px regardless of content, so a long intersection
 name cannot reflow the column.
+
+---
+
+## Session 1 (cont.) — Phase 5: pseudocode panel
+
+### Turn 10 — Instruction (human)
+
+Approved phase 4 and asked to begin phase 5.
+
+### Turn 10 — Response (AI)
+
+Added the pseudocode panel: the 25-line listing with the executing line lit, the rest
+of the executing block dimmed, and the panel auto-scrolling to keep the active line
+in view. Events gained a `lineEnd` so a relaxation highlights lines 19–23 rather than
+just the test, and `INIT` highlights lines 1–3 rather than pretending initialisation
+is one statement.
+
+**The branch verdict badge.** Lines 8 and 19 are conditionals, and the same line
+resolves opposite ways on different steps — line 19 is a RELAX when true and a SKIP
+when false. The panel now labels the outcome `TRUE`/`FALSE` on the branch line
+itself. This was identified back in the phase-0 spec as the single most instructive
+thing the panel could show, and it is now literally on screen: the viewer watches one
+line of code produce two different behaviours while the map reacts differently each
+time.
+
+### A bug that "looked correct"
+
+The auto-scroll used `active.offsetTop` to centre the highlighted line. But
+`offsetTop` is measured from the nearest *positioned* ancestor, and the scroll
+container had no `position`, so the arithmetic was silently using page coordinates
+several hundred pixels too large. Every result was clamped to the bottom of the
+listing.
+
+It appeared to work. The first line tested was line 19, which lives near the bottom
+of a 25-line listing — so scrolling to the bottom put it on screen and the panel
+looked correct. Only a geometric check across every event exposed it: `POP` at line 6
+was scrolled off the top the entire time.
+
+Fixed with `position: relative` on the container. Re-verified by walking all 347
+events and comparing each highlighted line's bounding box against the container's:
+**all 347 correct and in view.**
+
+Worth recording for the report. This is the third time in this project the same
+pattern has appeared: AI-written code that is idiomatic, plausible, and depends on an
+unstated precondition that was never checked (`document.matches` in phase 3, the
+`ev.target` type assumption, and now `offsetTop`'s reference frame). In each case the
+code reads perfectly and a casual test passes. The defect only surfaces when the
+check is made geometric or exhaustive rather than illustrative.
