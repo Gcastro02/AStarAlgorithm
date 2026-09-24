@@ -1,14 +1,17 @@
 /* ============================================================================
  * main.js — Wiring.
  *
- * Validate the city, draw it, run the search, then hand the resulting event
- * list to a player. Everything after that is: move an index, repaint.
+ * Validate the city, draw it, run the search, hand the event list to a player.
+ * Everything after that is: move an index, repaint.
+ *
+ * The route is changeable, so the search can be re-run for any start/goal pair.
+ * Note that the PLAYER is reused rather than rebuilt when that happens --
+ * bindControls() attaches a document-level keydown listener, and rebuilding
+ * would stack a second copy.
  * ==========================================================================*/
 
 (function main() {
   const city = CITY;
-  const startId = city.defaultStart;
-  const goalId = city.defaultGoal;
 
   /* -- Self-checks before drawing anything -------------------------------- */
   const problemList = document.getElementById('problems');
@@ -24,35 +27,10 @@
     console.error('City validation failed:', problems);
   }
 
-  /* -- Draw the static city ------------------------------------------------ */
+  /* -- Element handles ----------------------------------------------------- */
   const svg = document.getElementById('map');
-  const view = renderCity(svg, city, { startId, goalId });
-  renderStateKey(document.getElementById('key-states'));
-  renderLegend(document.getElementById('legend'), city);
-  renderPseudocode(document.getElementById('pseudocode'));
+  const mapPane = document.querySelector('.map-pane');
 
-  /* -- Run and verify the search ------------------------------------------- */
-  const check = verifySearch(city, startId, goalId);
-  const { result, reference, events } = check;
-
-  if (check.failures.length) {
-    console.error('A* VERIFICATION FAILED:', check.failures);
-    showProblems(check.failures);
-  } else {
-    console.log(
-      `%cA* verified%c  cost ${result.cost.toFixed(1)} over ${result.path.length} intersections. ` +
-      `Independent Dijkstra agrees (${reference.cost.toFixed(1)}). ` +
-      `A* settled ${result.settled} vs Dijkstra's ${reference.expanded}. ` +
-      `${events.length} events recorded.`,
-      'color:#3fb950;font-weight:bold', 'color:inherit'
-    );
-  }
-
-  document.getElementById('stats').innerHTML =
-    `<b>${city.nodes.length}</b> intersections &middot; <b>${city.edges.length}</b> roads &middot; ` +
-    `cheapest route <b>${result.cost.toFixed(0)}</b>`;
-
-  /* -- Element handles ------------------------------------------------------ */
   const els = {
     back: document.getElementById('btn-back'),
     step: document.getElementById('btn-step'),
@@ -70,6 +48,12 @@
     queueCount: document.getElementById('queue-count'),
     pseudocode: document.getElementById('pseudocode'),
     pcHint: document.getElementById('pc-hint'),
+    stats: document.getElementById('stats'),
+    routeStart: document.getElementById('route-start'),
+    routeGoal: document.getElementById('route-goal'),
+    pickStart: document.getElementById('btn-pick-start'),
+    pickGoal: document.getElementById('btn-pick-goal'),
+    routeReset: document.getElementById('btn-route-reset'),
   };
 
   const SHORT_LABEL = {
@@ -78,19 +62,24 @@
     SKIP_CLOSED: 'skip (settled)', DONE: 'done', EXHAUSTED: 'no route',
   };
 
-  /* -- Focus -----------------------------------------------------------------
-     The inspector normally follows the search. Hovering a node, or clicking a
-     queue row, pins it to that node instead until the pin is released. */
+  renderStateKey(document.getElementById('key-states'));
+  renderLegend(document.getElementById('legend'), city);
+  renderPseudocode(els.pseudocode);
+
+  /* -- Mutable session state ------------------------------------------------ */
+  let startId = city.defaultStart;
+  let goalId = city.defaultGoal;
+  let check = null;      // { events, result, reference, failures }
+  let view = null;       // handles from renderCity
   let pinnedId = null;
   let hoveredId = null;
+  let pickMode = null;   // 'start' | 'goal' | null
+  let renderedIndex = -1;
+  let notice = '';       // transient message that outranks the step narration
 
   const focusId = () => hoveredId || pinnedId || defaultFocus(player.event);
 
-  /* The queue list is rebuilt only when the algorithm state changes. A pure
-     focus change (hover, pin) just toggles a class, because rebuilding the
-     list would destroy the row under the cursor and recreate it. */
-  let renderedIndex = -1;
-
+  /* -- Painting ------------------------------------------------------------- */
   const repaint = () => {
     const event = player.event;
     const focus = focusId();
@@ -98,6 +87,9 @@
     paintEvent(view, city, event, focus);
     renderInspector(els.inspector, city, event, focus, goalId);
 
+    /* The queue list is rebuilt only when the algorithm state changes. A pure
+       focus change (hover, pin) just toggles a class, because rebuilding the
+       list would destroy the row under the cursor and recreate it. */
     if (player.index !== renderedIndex) {
       renderQueue(els.queue, city, event, focus);
       renderedIndex = player.index;
@@ -126,17 +118,18 @@
   };
 
   /* -- The player ----------------------------------------------------------- */
-  const player = createPlayer(events, (event, index, api) => {
+  const onChange = (event, index, api) => {
     repaint();
 
-    els.narration.innerHTML =
+    els.narration.innerHTML = notice ||
       `<strong>${SHORT_LABEL[event.type] || event.type}.</strong> ${event.narration}`;
+    notice = '';
 
     /* The goal is popped but never added to the closed set, so once we reach
        it closed.size undercounts by one. Same correction as result.settled. */
     const settled = event.expanded + (event.isGoal || event.path ? 1 : 0);
     els.status.textContent =
-      `${index + 1}/${events.length} · ${SHORT_LABEL[event.type] || event.type} · ${settled} settled`;
+      `${index + 1}/${player.length} · ${SHORT_LABEL[event.type] || event.type} · ${settled} settled`;
 
     if (els.scrub.value !== String(index)) els.scrub.value = String(index);
     els.play.textContent = api.playing ? 'Pause' : 'Play';
@@ -146,11 +139,86 @@
     els.step.disabled = api.atEnd;
     els.end.disabled = api.atEnd;
     els.nextPop.disabled = api.atEnd;
+  };
+
+  /* -- Loading a route ------------------------------------------------------
+     Re-runs the search, redraws the city (start and goal markers move), and
+     hands the new event list to the existing player. */
+  function loadRoute(nextStart, nextGoal) {
+    startId = nextStart;
+    goalId = nextGoal;
+
+    check = verifySearch(city, startId, goalId);
+    if (check.failures.length) {
+      console.error('A* VERIFICATION FAILED:', check.failures);
+      showProblems(check.failures);
+    } else {
+      console.log(
+        `%cA* verified%c  ${city.node(startId).name} → ${city.node(goalId).name}: ` +
+        `cost ${check.result.cost.toFixed(1)}, ${check.result.settled} settled. ` +
+        `Independent Dijkstra agrees (${check.reference.cost.toFixed(1)}). ` +
+        `${check.events.length} events.`,
+        'color:#3fb950;font-weight:bold', 'color:inherit'
+      );
+    }
+
+    view = renderCity(svg, city, { startId, goalId });
+
+    els.stats.innerHTML =
+      `<b>${city.nodes.length}</b> intersections &middot; <b>${city.edges.length}</b> roads &middot; ` +
+      (check.result.found
+        ? `cheapest route <b>${check.result.cost.toFixed(0)}</b>`
+        : `<b>no route</b>`);
+
+    els.routeStart.textContent = city.node(startId).name;
+    els.routeGoal.textContent = city.node(goalId).name;
+
+    els.scrub.max = String(check.events.length - 1);
+    renderedIndex = -1;
+    pinnedId = null;
+    hoveredId = null;
+
+    player.load(check.events);
+  }
+
+  /* Player needs an event list to exist; build the default route first. */
+  check = verifySearch(city, startId, goalId);
+  const player = createPlayer(check.events, onChange);
+  bindControls(player, els);
+  loadRoute(startId, goalId);
+
+  /* -- Picking a new start or goal ------------------------------------------ */
+  function setPickMode(mode) {
+    pickMode = mode;
+    els.pickStart.classList.toggle('is-armed', mode === 'start');
+    els.pickGoal.classList.toggle('is-armed', mode === 'goal');
+    mapPane.classList.toggle('is-picking', mode !== null);
+
+    if (mode) {
+      notice = `<strong>Pick a ${mode}.</strong> Click any intersection on the map. ` +
+               `Press Escape to cancel.`;
+      els.narration.innerHTML = notice;
+      notice = '';
+    }
+  }
+
+  els.pickStart.addEventListener('click', (ev) => {
+    setPickMode(pickMode === 'start' ? null : 'start');
+    ev.currentTarget.blur();
   });
 
-  bindControls(player, els);
+  els.pickGoal.addEventListener('click', (ev) => {
+    setPickMode(pickMode === 'goal' ? null : 'goal');
+    ev.currentTarget.blur();
+  });
 
-  /* -- Hovering the map ----------------------------------------------------- */
+  els.routeReset.addEventListener('click', (ev) => {
+    setPickMode(null);
+    loadRoute(city.defaultStart, city.defaultGoal);
+    ev.currentTarget.blur();
+  });
+
+  /* -- Map interaction ------------------------------------------------------ */
   svg.addEventListener('mouseover', (ev) => {
     const group = ev.target.closest('.node');
     if (!group || group.dataset.node === hoveredId) return;
@@ -167,16 +235,34 @@
     repaint();
   });
 
-  /* Clicking a node pins it, so you can step forward and watch one particular
-     intersection's numbers change. */
   svg.addEventListener('click', (ev) => {
     const group = ev.target.closest('.node');
     if (!group) return;
-    pinnedId = pinnedId === group.dataset.node ? null : group.dataset.node;
+    const id = group.dataset.node;
+
+    if (pickMode) {
+      const other = pickMode === 'start' ? goalId : startId;
+      if (id === other) {
+        /* Allowing start == goal produces a four-event search that teaches
+           nothing, so refuse it and say why rather than silently ignoring. */
+        notice = `<strong>Pick somewhere else.</strong> ${city.node(id).name} is ` +
+                 `already the ${pickMode === 'start' ? 'goal' : 'start'}. ` +
+                 `A route needs two different intersections.`;
+        els.narration.innerHTML = notice;
+        notice = '';
+        return;
+      }
+      const wasPicking = pickMode;
+      setPickMode(null);
+      loadRoute(wasPicking === 'start' ? id : startId, wasPicking === 'goal' ? id : goalId);
+      return;
+    }
+
+    pinnedId = pinnedId === id ? null : id;
     repaint();
   });
 
-  /* -- Clicking a queue row ------------------------------------------------ */
+  /* -- Queue interaction ---------------------------------------------------- */
   els.queue.addEventListener('click', (ev) => {
     const row = ev.target.closest('.q-row');
     if (!row) return;
@@ -184,8 +270,6 @@
     repaint();
   });
 
-  /* Hovering a queue row highlights that intersection on the map -- the link
-     between an abstract queue position and a real place. */
   els.queue.addEventListener('mouseover', (ev) => {
     const row = ev.target.closest('.q-row');
     if (!row || row.dataset.node === hoveredId) return;
@@ -210,10 +294,35 @@
     keyToggle.blur();
   });
 
-  player.goTo(0);
+  /* -- Help overlay --------------------------------------------------------- */
+  const helpOverlay = document.getElementById('help-overlay');
+  const helpBtn = document.getElementById('help-btn');
+  const setHelp = (open) => {
+    helpOverlay.classList.toggle('is-hidden', !open);
+    helpBtn.setAttribute('aria-expanded', String(open));
+    if (open) player.pause();
+  };
 
-  /* Expose for console poking while building later phases. */
-  window.DEMO = { city, view, check, events, result, player, repaint };
+  helpBtn.addEventListener('click', () => { setHelp(true); helpBtn.blur(); });
+  document.getElementById('help-close').addEventListener('click', () => setHelp(false));
+  helpOverlay.addEventListener('click', (ev) => {
+    if (ev.target === helpOverlay) setHelp(false);
+  });
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    if (!helpOverlay.classList.contains('is-hidden')) { setHelp(false); return; }
+    if (pickMode) setPickMode(null);
+  });
+
+  /* Expose for console poking. */
+  window.DEMO = {
+    city, player, repaint, loadRoute,
+    get view() { return view; },
+    get check() { return check; },
+    get events() { return check.events; },
+    get result() { return check.result; },
+  };
 
   console.log(
     `%cRiverford loaded%c  ${city.nodes.length} intersections, ${city.edges.length} roads. ` +

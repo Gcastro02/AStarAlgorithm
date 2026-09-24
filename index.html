@@ -14,8 +14,47 @@
     <h1>A* Search</h1>
     <span class="sub">Finding the cheapest route across Riverford</span>
     <span class="stats" id="stats"></span>
-    <span class="phase" id="phase-badge">phase 5 &middot; narration &amp; code</span>
+    <button class="help-btn" id="help-btn" type="button" aria-expanded="false">How to read this</button>
   </header>
+
+  <div class="help-overlay is-hidden" id="help-overlay">
+    <div class="help-card" role="dialog" aria-labelledby="help-title">
+      <button class="help-close" id="help-close" type="button" aria-label="Close">&times;</button>
+      <h2 id="help-title">How to read this</h2>
+
+      <p><strong>The problem.</strong> Drive across Riverford as cheaply as possible.
+      A road's cost is its length times its congestion, so the shortest-looking route
+      is often not the cheapest. A river splits the city and there are only two
+      bridges.</p>
+
+      <p><strong>The three numbers.</strong> For any intersection,
+      <span class="hl-g">g</span> is what you have already paid to reach it,
+      <span class="hl-h">h</span> is the straight-line distance still to go &mdash;
+      a guess, drawn on the map as the dashed line &mdash; and
+      <strong>f = g + h</strong> is the estimated cost of a whole trip through
+      there. <strong>f is the only number the queue sorts on.</strong></p>
+
+      <p><strong>Why the guess is safe.</strong> Roads bend, and traffic only ever
+      slows you down, so the crow-flies distance can never be more than the real
+      remaining cost. A guess that never overestimates is called
+      <em>admissible</em>, and it is the reason A* never misses the best route.</p>
+
+      <p><strong>Watch for these.</strong> The search heads straight at the goal,
+      reaches the water where there is no bridge, and has to back out. It also
+      walks into Pier Road, a dead end aimed right at the destination. And the
+      winning route starts by driving <em>away</em> from the goal, onto the fast
+      belt road.</p>
+
+      <dl class="help-keys">
+        <dt>&larr; &rarr;</dt><dd>step back / forward</dd>
+        <dt>space</dt><dd>play / pause</dd>
+        <dt>N</dt><dd>skip to the next expansion</dd>
+        <dt>Home / End</dt><dd>jump to start / finish</dd>
+        <dt>hover</dt><dd>inspect any intersection's numbers</dd>
+        <dt>click</dt><dd>pin an intersection and watch it change</dd>
+      </dl>
+    </div>
+  </div>
 
   <main class="map-pane">
     <svg id="map" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"
@@ -92,6 +131,17 @@
       <label class="speed-label" for="speed">speed</label>
       <input type="range" id="speed" class="speed" min="100" max="1050" step="50" value="600"
              aria-label="Playback speed">
+    </div>
+    <div class="controls-row controls-row--route">
+      <span class="route-label">Route</span>
+      <span class="route-node route-node--start" id="route-start">&mdash;</span>
+      <span class="route-arrow">&rarr;</span>
+      <span class="route-node route-node--goal" id="route-goal">&mdash;</span>
+      <button id="btn-pick-start" class="pick" type="button">Set start</button>
+      <button id="btn-pick-goal" class="pick" type="button">Set goal</button>
+      <button id="btn-route-reset" type="button">Default route</button>
+      <span class="spacer"></span>
+      <span class="keyhint">&larr; &rarr; step &middot; space play &middot; N next pop &middot; hover to inspect</span>
     </div>
   </div>
 

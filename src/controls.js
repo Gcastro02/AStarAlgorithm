@@ -87,6 +87,19 @@ function createPlayer(events, onChange) {
 
     toggle() { timer ? api.pause() : api.play(); },
 
+    /**
+     * Swap in a different search. Done by replacing the event list rather than
+     * building a new player, because bindControls() attaches a document-level
+     * keydown listener -- rebuilding would stack a second copy of it and every
+     * arrow press would step twice.
+     */
+    load(nextEvents) {
+      api.pause();
+      events = nextEvents;
+      index = 0;
+      notify();
+    },
+
     setInterval(ms) {
       interval = ms;
       if (timer) { clearInterval(timer); timer = null; api.play(); }

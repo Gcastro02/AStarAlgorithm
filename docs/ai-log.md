@@ -525,3 +525,64 @@ unstated precondition that was never checked (`document.matches` in phase 3, the
 `ev.target` type assumption, and now `offsetTop`'s reference frame). In each case the
 code reads perfectly and a casual test passes. The defect only surfaces when the
 check is made geometric or exhaustive rather than illustrative.
+
+---
+
+## Session 1 (cont.) — Phase 6: polish and route picking
+
+### Turn 11 — Instruction (human)
+
+Approved phase 5 and asked to begin phase 6.
+
+### Turn 11 — Response (AI)
+
+Added the ability to pick any start and goal and re-run the search, a "How to read
+this" overlay, keyboard hints, and dynamic start/goal map labels. Replaced the
+development phase badge with the help button.
+
+### The re-run has a trap in it, and it was designed around rather than discovered
+
+Changing the route means re-running A* and handing the UI a new event list. The
+obvious implementation — build a new player — would have been wrong:
+`bindControls()` attaches a **document-level** keydown listener, so a second player
+would stack a second listener and every arrow press would step twice, silently, and
+only after the user had changed the route at least once.
+
+Instead the player exposes `load(newEvents)` and is reused. Verified by changing the
+route four times and then confirming one arrow press advances by exactly 1 and three
+presses by exactly 3.
+
+This is the same failure family as the phase-3 double-toggle bug (a stale or doubled
+input handler), and this time it was anticipated rather than shipped.
+
+### Exhaustive verification
+
+Because the viewer can now choose any pair, correctness for one route is no longer
+sufficient. The full verifier was run headlessly over **every ordered start/goal pair
+in the city — 4160 of them**:
+
+- **0 verification failures.** Every pair's A* cost equals an independent Dijkstra's,
+  every returned path is a real drive whose edges sum to the reported cost, and no
+  closed node's `g` ever changed after closing.
+- 0 unreachable pairs.
+- Longest search 496 events; mean 164.
+
+### A correction to what the AI reported in phase 2
+
+Phase 2 reported that A*'s pruning advantage was "modest, about 18%", measured on the
+single default route, and flagged it as a possible weakness of the demo.
+
+Across all 4160 pairs, **A* settles 37.7% fewer intersections than Dijkstra**. The
+default Harbor Gate → Summit Plaza route is one of A*'s *weaker* showings, because
+the river forces any search to sweep the west bank thoroughly. Generalising from one
+measurement was the error; the demo's typical behaviour is roughly twice as good as
+reported.
+
+### Other behaviour verified
+
+- Escape cancels an armed pick and closes the help overlay.
+- Choosing a node that is already the other endpoint is refused with an explanation,
+  rather than silently ignored or allowed to produce a degenerate four-event search.
+- Map labels follow the route: `START —` and `GOAL —` are generated per render, and a
+  landmark that happens to be the start or goal yields its label.
+- Layout stability check still single-valued after adding a third controls row.

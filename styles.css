@@ -620,7 +620,7 @@ html, body {
    same column as the map, so anything that can change height here will resize
    the map and move nodes under the cursor. */
 .controls {
-  height: 92px;
+  height: 128px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -823,3 +823,134 @@ input[type="range"]:focus-visible { box-shadow: 0 0 0 3px #2b558066; }
 
 .pc-verdict.is-true  { color: #7ee8b4; background: #10321f; }
 .pc-verdict.is-false { color: #f2a08f; background: #3a1a16; }
+
+/* -- Route picker ------------------------------------------------------------ */
+
+.route-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.route-node {
+  font-size: 12.5px;
+  font-weight: 600;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.route-node--start { color: var(--start); }
+.route-node--goal  { color: var(--goal); }
+.route-arrow { color: var(--dim); }
+
+.controls button.pick.is-armed {
+  background: #3a2c08;
+  border-color: #6b5320;
+  color: var(--current);
+  font-weight: 600;
+}
+
+/* While arming a pick, every intersection is a target. */
+.map-pane.is-picking { cursor: crosshair; }
+.map-pane.is-picking .node-dot { cursor: crosshair; }
+
+.keyhint {
+  font-size: 11px;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* -- Help overlay ------------------------------------------------------------ */
+
+.help-btn {
+  margin-left: auto;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--heur);
+  background: #221c0d;
+  border: 1px solid #3a3118;
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.help-btn:hover { background: #2e2611; color: #f0c669; }
+
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #060a10cc;
+  backdrop-filter: blur(2px);
+}
+
+.help-overlay.is-hidden { display: none; }
+
+.help-card {
+  position: relative;
+  max-width: 620px;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 26px 30px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px #000000a0;
+}
+
+.help-card h2 {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.help-card p {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.help-card strong { color: var(--text); }
+.help-card em { color: var(--text); font-style: italic; }
+
+.hl-g { color: var(--open); font-weight: 700; font-family: var(--mono); }
+.hl-h { color: var(--heur); font-weight: 700; font-family: var(--mono); }
+
+.help-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.help-close:hover { color: var(--text); }
+
+.help-keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 16px;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+}
+
+.help-keys dt { font-family: var(--mono); color: var(--text); }
+.help-keys dd { margin: 0; color: var(--muted); }

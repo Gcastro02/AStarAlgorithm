@@ -19,30 +19,14 @@ function svgEl(name, attrs = {}, parent = null) {
 }
 
 /* Landmarks worth labelling on the map itself. Labelling all 65 intersections
-   would be unreadable; everything else gets a hover tooltip instead. */
-const LABELLED = new Set([
-  'harbor_gate', 'summit_plaza', 'pier_end',
-  'nb_w', 'sb_w', 'hw2',
-]);
-
-const LABEL_TEXT = {
-  harbor_gate: 'START — Harbor Gate',
-  summit_plaza: 'GOAL — Summit Plaza',
-  pier_end: 'Pier Rd (dead end)',
-  nb_w: 'North Bridge',
-  sb_w: 'South Bridge',
-  hw2: 'The Skyway',
-};
-
-/* dx, dy, text-anchor. The pier label sits below-left so it does not collide
-   with the heuristic line's own label, which runs through the same spot. */
-const LABEL_OFFSET = {
-  harbor_gate:  [0, -20, 'middle'],
-  summit_plaza: [0, -20, 'middle'],
-  pier_end:     [-12, 20, 'end'],
-  nb_w:         [0, -18, 'middle'],
-  sb_w:         [0, -18, 'middle'],
-  hw2:          [12, -14, 'start'],
+   would be unreadable; everything else gets a hover tooltip instead.
+   [text, dx, dy, text-anchor]. The pier label sits below-left so it does not
+   collide with the heuristic line's label, which runs through the same spot. */
+const LANDMARKS = {
+  pier_end: ['Pier Rd (dead end)', -12, 20, 'end'],
+  nb_w:     ['North Bridge', 0, -18, 'middle'],
+  sb_w:     ['South Bridge', 0, -18, 'middle'],
+  hw2:      ['The Skyway', 12, -14, 'start'],
 };
 
 /**
@@ -127,19 +111,31 @@ function renderCity(svg, city, options = {}) {
     nodeEls.set(nd.id, group);
   }
 
-  /* -- Landmark labels ---------------------------------------------------- */
-  for (const id of LABELLED) {
-    if (!city.has(id)) continue;
-    const nd = city.node(id);
-    const [dx, dy, anchor] = LABEL_OFFSET[id] || [0, -16, 'middle'];
-    const cls = id === startId ? 'map-label map-label--start'
-      : id === goalId ? 'map-label map-label--goal'
-      : 'map-label';
+  /* -- Labels --------------------------------------------------------------
+     Start and goal are labelled wherever the viewer puts them, so these are
+     built per render rather than from a fixed table. A landmark that happens
+     to BE the start or goal yields its label to the route label. */
+  const labels = [];
+  for (const [id, [text, dx, dy, anchor]] of Object.entries(LANDMARKS)) {
+    if (!city.has(id) || id === startId || id === goalId) continue;
+    labels.push({ id, text, dx, dy, anchor, cls: 'map-label' });
+  }
+  labels.push({
+    id: startId, text: `START — ${city.node(startId).name}`,
+    dx: 0, dy: -20, anchor: 'middle', cls: 'map-label map-label--start',
+  });
+  labels.push({
+    id: goalId, text: `GOAL — ${city.node(goalId).name}`,
+    dx: 0, dy: -20, anchor: 'middle', cls: 'map-label map-label--goal',
+  });
+
+  for (const label of labels) {
+    const nd = city.node(label.id);
     const text = svgEl('text', {
-      x: nd.x + dx, y: nd.y + dy, class: cls,
-      'text-anchor': anchor,
+      x: nd.x + label.dx, y: nd.y + label.dy, class: label.cls,
+      'text-anchor': label.anchor,
     }, layers.labels);
-    text.textContent = LABEL_TEXT[id] || nd.name;
+    text.textContent = label.text;
   }
 
   return { layers, nodeEls, edgeEls, fLabels, startId, goalId };
