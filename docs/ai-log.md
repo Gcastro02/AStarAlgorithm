@@ -586,3 +586,49 @@ reported.
 - Map labels follow the route: `START —` and `GOAL —` are generated per render, and a
   landmark that happens to be the start or goal yields its label.
 - Layout stability check still single-valued after adding a third controls row.
+
+---
+
+## Session 1 (cont.) — Reversing a scope decision, and phase 7
+
+### Turn 12 — Question (human)
+
+Before starting phase 7, asked what the AI thought of adding an A* versus Dijkstra
+comparison to the simulator — the "algorithm race" feature that had been cut from
+scope in turn 2.
+
+### Turn 12 — Response (AI)
+
+Gathered evidence before answering rather than opining:
+
+1. **Dijkstra is already implemented, twice over.** `runAStar(..., {weight: 0})` sets
+   `h = 0` and reduces exactly to Dijkstra. Verified against the independent
+   reference implementation across all 4160 ordered pairs: identical cost and
+   identical settled count on every single one. The comparison therefore reuses the
+   same event-emitting code path, and the whole existing UI works on it unchanged.
+
+2. **A finding that materially changed the recommendation.** The demo's default route
+   ranks **3703rd of 4160** for A*-versus-Dijkstra contrast — the bottom 11%. Adding
+   a comparison without changing the featured route would have shown viewers A*'s
+   weakest performance. Northbelt Mid → Eastbelt Mid gives 16 versus 53 (70% less)
+   and still crosses the river, preserving the heuristic-misleads story.
+
+This is the second time in two phases that measuring across all pairs, rather than
+reasoning from the one route in front of it, changed a conclusion the AI had
+previously stated with confidence.
+
+### Turn 12 — Decisions (human)
+
+- Phase 7 (README and experience report) first, since those are the graded
+  deliverables; comparison becomes phase 8.
+- Side-by-side dual map rather than a ghost overlay.
+- Greedy best-first as a third panel: not for now.
+
+### Turn 13 — Phase 7 (AI)
+
+Wrote `README.md` and `docs/report.md`, and recorded the phase 8 design in the spec's
+open questions.
+
+The report is drafted from this log, with every incident traceable to a commit or a
+measurement, and flagged at the top as a draft for the human to edit into their own
+voice — it is a report about their experience, not the AI's.

@@ -322,3 +322,17 @@ SVG over Canvas: we need hover targets, text labels, and CSS transitions on indi
   Generation should be **seeded**, with the seed shown in the UI, so a particular city can be returned to — which matters for grading and for pointing someone at a specific example.
 
   Sequencing: the hand-authored map stays the default on first load. It is tuned so the first thing a viewer ever sees is the clearest possible case. A randomiser is a "now try another one" after the guided example, not a replacement for it.
+
+- **A* vs Dijkstra comparison (raised after phase 6, scheduled as phase 8).** Reversing the initial decision to cut the "algorithm race", on evidence gathered during phases 2 and 6.
+
+  **It is nearly free.** Dijkstra is A* that refuses to guess: `runAStar(city, a, b, {weight: 0})` sets `h = 0` and sorts on `g` alone. Verified against the independent reference Dijkstra across all 4160 ordered pairs — identical cost and identical settled count on every one. So it reuses the same event-emitting code path, and the entire existing UI (map, queue, inspector, pseudocode, narration) works on it unchanged.
+
+  The framing is also better than a bolted-on rival algorithm: it is *the same code with the heuristic switched off*, which shows what the heuristic is for more directly than any explanation.
+
+  **The default route must change for compare mode.** Harbor Gate → Summit Plaza saves only 18% and ranks **3703rd of 4160** for contrast — the bottom 11%, because the river forces any search to sweep the west bank. Featuring it would undersell A*. Northbelt Mid → Eastbelt Mid gives 16 vs 53 (70% less, 37 fewer nodes) and still crosses the river, so it keeps the heuristic-misleads story intact. That is the route compare mode should open on.
+
+  **Shape: side-by-side dual map.** The lesson is the difference in *shape* — Dijkstra's explored region spreading outward as a blob, A*'s stretching into an ellipse aimed at the goal — and that only reads when both grow at once. In compare mode, drop the `f` labels and landmark labels: the comparison is about extent, not arithmetic.
+
+  **The fiddly part is synchronisation.** The two event lists have different lengths and different structures, so the maps must step in lockstep on *expansion count* (POP events), not on raw event index. That is where bugs would live and where testing should concentrate.
+
+  Greedy best-first (`f = h`, ignoring `g`) was considered as a third panel — it charges at the goal, falls into the Pier Road cul-de-sac, and returns a worse route, completing the triad "Dijkstra ignores the guess, Greedy ignores the facts, A* uses both". Deferred; the two-way comparison carries the lesson.
