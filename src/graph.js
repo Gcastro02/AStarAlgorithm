@@ -181,7 +181,7 @@ const EDGES = [
 
   /* East riverbank road */
   e('re1', 're2', 'arterial'), e('re2', 're3', 'arterial'),
-  e('re3', 're4', 'arterial'), e('re4', 're5', 'arterial'),
+  e('re3', 're4', 'arterial'), e('re4', 'sb_e', 'arterial'),
   e('nb_e', 're1', 'arterial'), e('sb_e', 're5', 'arterial'),
 
   /* The Skyway */
@@ -270,7 +270,26 @@ function heuristic(city, nodeId, goalId) {
  * Build the adjacency structure the search actually walks.
  * -------------------------------------------------------------------------*/
 
-function buildCity() {
+/* The hand-authored city. Passed to buildCity() by default; the generator in
+   citygen.js produces specs of exactly this shape. */
+const RIVERFORD = {
+  name: 'Riverford',
+  seed: null,
+  nodes: NODES,
+  edges: EDGES,
+  river: RIVER,
+  parks: PARKS,
+  defaultStart: DEFAULT_START,
+  defaultGoal: DEFAULT_GOAL,
+};
+
+/**
+ * Turn a city spec into the structure the search walks.
+ * @param {object} [spec] { name, seed, nodes, edges, river, parks, defaultStart, defaultGoal }
+ */
+function buildCity(spec = RIVERFORD) {
+  const NODES = spec.nodes;
+  const EDGES = spec.edges;
   const byId = new Map(NODES.map((node) => [node.id, node]));
   const node = (id) => {
     const found = byId.get(id);
@@ -306,6 +325,8 @@ function buildCity() {
   const edgeLookup = new Map(edges.map((edge) => [edgeKey(edge.a, edge.b), edge]));
 
   return {
+    name: spec.name || 'Unnamed city',
+    seed: spec.seed === undefined ? null : spec.seed,
     nodes: NODES,
     edges,
     adjacency,
@@ -313,11 +334,11 @@ function buildCity() {
     has: (id) => byId.has(id),
     neighbours: (id) => adjacency.get(id) || [],
     edgeBetween: (a, b) => edgeLookup.get(edgeKey(a, b)),
-    river: RIVER,
-    parks: PARKS,
+    river: spec.river || [],
+    parks: spec.parks || [],
     roadTypes: ROAD_TYPES,
-    defaultStart: DEFAULT_START,
-    defaultGoal: DEFAULT_GOAL,
+    defaultStart: spec.defaultStart,
+    defaultGoal: spec.defaultGoal,
   };
 }
 
@@ -387,6 +408,29 @@ function validateCity(city) {
         `Road ${edge.a} <-> ${edge.b} passes within ${closest.toFixed(1)}px of the ` +
         `river centreline, so it will look like it drives through the water.`
       );
+    }
+  }
+
+  /* Roads must not cross each other except at intersections. A crossing with
+     no node there is a road the search cannot turn onto, which makes the map
+     lie about its own connectivity -- and it is very hard to see by eye. This
+     check found exactly such a defect in the hand-authored map, months of
+     screenshots after it was introduced. O(E^2), which at ~100 edges is free. */
+  for (let i = 0; i < city.edges.length; i++) {
+    for (let j = i + 1; j < city.edges.length; j++) {
+      const e = city.edges[i];
+      const f = city.edges[j];
+      /* Roads meeting at a shared intersection are not a crossing. */
+      if (e.a === f.a || e.a === f.b || e.b === f.a || e.b === f.b) continue;
+      const p = [city.node(e.a).x, city.node(e.a).y];
+      const q = [city.node(e.b).x, city.node(e.b).y];
+      const r = [city.node(f.a).x, city.node(f.a).y];
+      const t = [city.node(f.b).x, city.node(f.b).y];
+      if (segmentsCross(p, q, r, t)) {
+        problems.push(
+          `Roads ${e.a}–${e.b} and ${f.a}–${f.b} cross with no intersection between them.`
+        );
+      }
     }
   }
 

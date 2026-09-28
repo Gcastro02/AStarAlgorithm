@@ -166,6 +166,13 @@
              aria-label="Playback speed">
     </div>
     <div class="controls-row controls-row--route">
+      <span class="route-label">City</span>
+      <span class="city-name" id="city-name">Riverford</span>
+      <button id="btn-new-city" type="button" title="Generate a different city">New city</button>
+      <button id="btn-orig-city" type="button" hidden>Back to Riverford</button>
+
+      <span class="route-divider"></span>
+
       <span class="route-label">Route</span>
       <span class="route-node route-node--start" id="route-start">&mdash;</span>
       <span class="route-arrow">&rarr;</span>
@@ -174,7 +181,6 @@
       <button id="btn-pick-goal" class="pick" type="button">Set goal</button>
       <button id="btn-route-reset" type="button">Default route</button>
       <span class="spacer"></span>
-      <span class="keyhint">&larr; &rarr; step &middot; space play &middot; N next pop &middot; hover to inspect</span>
     </div>
   </div>
 
@@ -185,6 +191,7 @@
 <script src="src/graph.js"></script>
 <script src="src/priorityqueue.js"></script>
 <script src="src/astar.js"></script>
+<script src="src/citygen.js"></script>
 <script src="src/render.js"></script>
 <script src="src/panels.js"></script>
 <script src="src/controls.js"></script>

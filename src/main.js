@@ -11,7 +11,8 @@
  * ==========================================================================*/
 
 (function main() {
-  const city = CITY;
+  /* Mutable: the viewer can swap in a generated city. */
+  let city = CITY;
 
   /* -- Self-checks before drawing anything -------------------------------- */
   const problemList = document.getElementById('problems');
@@ -59,6 +60,9 @@
     countB: document.getElementById('count-b'),
     compareSummary: document.getElementById('compare-summary'),
     compareBtn: document.getElementById('compare-btn'),
+    cityName: document.getElementById('city-name'),
+    newCity: document.getElementById('btn-new-city'),
+    origCity: document.getElementById('btn-orig-city'),
   };
 
   const SHORT_LABEL = {
@@ -154,6 +158,9 @@
   const SUGGESTED = { start: 'ring_n2', goal: 'er2' };
 
   function suggestionFor(s, g) {
+    /* These ids belong to Riverford. A generated city has none of them, and
+       looking them up would throw inside the summary renderer. */
+    if (!city.has(SUGGESTED.start) || !city.has(SUGGESTED.goal)) return null;
     if (s === SUGGESTED.start && g === SUGGESTED.goal) return null;
     const saved = dijkstra.result.settled - check.result.settled;
     const pct = dijkstra.result.settled ? 1 - check.result.settled / dijkstra.result.settled : 0;
@@ -244,7 +251,7 @@
   check = verifySearch(city, startId, goalId);
   const player = createPlayer(check.events, onChange);
   bindControls(player, els);
-  loadRoute(startId, goalId);
+  loadCity(CITY);
 
   /* -- Picking a new start or goal ------------------------------------------ */
   function setPickMode(mode) {
@@ -353,6 +360,79 @@
     keyToggle.blur();
   });
 
+  /* -- Swapping the whole city ---------------------------------------------
+     Everything downstream already takes the city as a parameter, so this is
+     just: replace it, redraw, reload the route. */
+  function loadCity(nextCity) {
+    city = nextCity;
+
+    problemList.innerHTML = '';
+    problemList.classList.add('is-hidden');
+    const cityProblems = validateCity(city);
+    if (cityProblems.length) {
+      showProblems(cityProblems);
+      console.error('City validation failed:', cityProblems);
+    }
+
+    els.cityName.innerHTML = city.seed === null
+      ? city.name
+      : `${city.name}<span class="seed">seed ${city.seed >>> 0}</span>`;
+    els.origCity.hidden = city.seed === null;
+
+    setPickMode(null);
+    loadRoute(city.defaultStart, city.defaultGoal);
+  }
+
+  els.newCity.addEventListener('click', (ev) => {
+    const button = ev.currentTarget;
+    button.blur();
+    player.pause();
+
+    /* Generation takes a few hundred milliseconds of blocking work, so paint
+       the busy state first and let the browser flush it before starting. */
+    button.classList.add('is-busy');
+    button.textContent = 'Generating…';
+    els.narration.innerHTML =
+      '<strong>Building a city.</strong> Candidates are generated, validated, ' +
+      'and then actually searched — any that produce a dull or unsolvable ' +
+      'search are thrown away.';
+
+    requestAnimationFrame(() => setTimeout(() => {
+      const t0 = performance.now();
+      const made = generateCity();
+      const ms = Math.round(performance.now() - t0);
+
+      button.classList.remove('is-busy');
+      button.textContent = 'New city';
+
+      if (!made.city) {
+        /* Never leave the viewer on a broken map: keep the current one and say
+           what happened. */
+        console.warn('City generation failed:', made.lastRejection);
+        els.narration.innerHTML =
+          `<strong>No luck.</strong> ${made.attempts} candidate cities were ` +
+          `generated and none produced a search worth watching. Keeping the ` +
+          `current city — try again.`;
+        return;
+      }
+
+      console.log(
+        `%cCity generated%c  "${made.city.name}" seed ${made.seed >>> 0} — ` +
+        `${made.stats.nodes} intersections, ${made.stats.edges} roads. ` +
+        `A* settles ${made.stats.settled} vs Dijkstra's ${made.stats.dijkstraSettled} ` +
+        `(${Math.round(made.stats.saving * 100)}% less). ` +
+        `${made.attempts} candidates screened in ${ms}ms.`,
+        'color:#3fb950;font-weight:bold', 'color:inherit'
+      );
+      loadCity(made.city);
+    }, 0));
+  });
+
+  els.origCity.addEventListener('click', (ev) => {
+    loadCity(CITY);
+    ev.currentTarget.blur();
+  });
+
   /* -- Compare toggle ------------------------------------------------------ */
   els.compareBtn.addEventListener('click', (ev) => {
     compareMode = !compareMode;
@@ -394,7 +474,8 @@
 
   /* Expose for console poking. */
   window.DEMO = {
-    city, player, repaint, loadRoute,
+    player, repaint, loadRoute, loadCity,
+    get city() { return city; },
     get view() { return view; },
     get check() { return check; },
     get events() { return check.events; },

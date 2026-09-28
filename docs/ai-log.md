@@ -688,3 +688,91 @@ Three viewport sizes later it was clear the screenshot tool, not the page, was a
 fault. Two things worth noting: the AI's inability to see its own output reliably has
 now cost time in three separate phases, and checking the measurement before "fixing"
 the phantom bug is what stopped it from damaging working code.
+
+---
+
+## Session 1 (cont.) — Phase 9: procedural city generator
+
+### Turn 15 — Request (human)
+
+Asked for a random map generator, with Riverford as the default and a button to
+generate a new city, so the two algorithms could be seen working in different
+situations. Left the reset mechanism open — button versus page refresh — asking for
+whichever made the UI less clunky.
+
+### Turn 15 — Response (AI)
+
+Built `src/citygen.js`. Design summary:
+
+- Seeded PRNG, with the seed shown in the UI so a city can be returned to.
+- Nodes on a **jittered lattice**, jitter kept below half the cell spacing. That is
+  what makes the edges planar for free — a general solution would need Delaunay
+  triangulation and about 150 more lines.
+- A meandering river, then every edge crossing it is dropped and two or three
+  bridges added back.
+- A dead end on the start's bank, aimed at the goal.
+- **A quality gate that runs the real search.** Candidates are validated, then A* and
+  Dijkstra are run over two dozen possible routes, and the city is scored on whether
+  the result is worth watching: does the best route cross the river, is it long
+  enough, does A* beat Dijkstra by a wide enough margin, does the search explore a
+  sensible fraction of the map.
+
+### A design correction found by measurement, not inspection
+
+The first working version accepted the *first* candidate that cleared the bar. That
+capped quality at the threshold: average A* saving 32%, range 30–37%, and 2 of 40
+attempts found nothing at all.
+
+Changed to screen many candidates and keep the **best**. To afford that, `runAStar`
+gained a `record: false` option that skips event emission and queue snapshots —
+verified to return bit-identical results to a recorded run across 368 route pairs,
+and measured at **14x faster** (39ms versus 543ms for 200 searches). Keeping it as a
+flag on the same function means the screening path and the display path can never
+drift into two different implementations of A*.
+
+Result after the change: **60 of 60 attempts succeed, average saving 50%** (range
+42–60%), generation about 350ms.
+
+### A defect in the hand-authored map, found by a new validator
+
+Adding a road-versus-road crossing check — needed because a generator can easily
+produce roads that cross with no intersection between them — immediately failed on
+**Riverford**, the hand-authored map: `re4–re5` crossed `sb_e–ed31` at (586, 600).
+Two roads overlapping with no junction, present since phase 1 and in every screenshot
+since.
+
+The first fix moved a node and created a *different* crossing with the bridge. The
+real problem was topological rather than positional: the riverside road ran *past*
+the bridge head instead of meeting it. Routing it through the bridge node removed the
+crossing entirely and is more realistic.
+
+That check is now permanent.
+
+### Two more bugs
+
+- `window.DEMO.city` was captured by value when `city` became reassignable, so the
+  AI's own test read the *previous* city's statistics after generating a new one.
+  Caught because the reported node count disagreed with the one on screen.
+- The compare-mode suggestion chip hardcodes two Riverford node ids. On a generated
+  city those ids do not exist and looking them up throws inside the summary renderer.
+  Guarded.
+
+### A third phantom visual bug
+
+A screenshot appeared to show the generated river drawn only as a short stub. Before
+changing anything the AI measured `getBBox()`: the river spanned the full 740 units
+as intended, and the SVG was simply letterboxed inside a narrow preview pane.
+
+This is now the third time a preview-pane artifact has looked like a real defect. The
+useful habit that came out of it: measure the geometry before believing the picture.
+The AI cannot see its own output reliably, and has repeatedly been about to "fix"
+things that were never broken.
+
+### Verification
+
+- 60 generated cities: zero validation failures, zero A* verification failures.
+- **25 generated cities × a sample of their routes: 5692 routes verified, zero
+  failures, zero unreachable pairs.**
+- In-browser: compare mode works on a generated city with the panes staying exactly
+  in sync across every event, route picking works, and returning to Riverford
+  restores the original city intact.

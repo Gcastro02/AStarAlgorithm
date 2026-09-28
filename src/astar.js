@@ -79,11 +79,20 @@ function runAStar(city, startId, goalId, options = {}) {
   const closed = new Set();
   const open = new PriorityQueue(tieBreak);
 
+  /* When `record` is false the search still runs and still returns a correct
+     result, but emits no events and takes no queue snapshots. Used for bulk
+     screening -- the city generator runs hundreds of trial searches and needs
+     only the cost and the settled count, not several hundred KB of state per
+     search. Keeping it as a flag on the same function means screening and
+     display can never diverge into two implementations of A*. */
+  const record = options.record !== false;
+
   const events = [];
   let heapProblem = null;
 
   /* Build one immutable snapshot of everything the UI could want to draw. */
   const emit = (type, line, narration, extra = {}) => {
+    if (!record) return;
     events.push({
       index: events.length,
       type,
@@ -112,13 +121,13 @@ function runAStar(city, startId, goalId, options = {}) {
 
   /* -- Main loop ---------------------------------------------------------- */
   while (!open.isEmpty()) {
-    const queueBefore = open.snapshot();
+    const queueBefore = record ? open.snapshot() : null;
     const top = open.pop();
     const current = top.id;
 
-    heapProblem = heapProblem || open.checkInvariant();
+    if (record) heapProblem = heapProblem || open.checkInvariant();
 
-    const runnerUp = queueBefore[1];
+    const runnerUp = queueBefore ? queueBefore[1] : null;
     emit(EVENT.POP, 6,
       `Popped ${name(current)} with f = ${num(top.f)} — the lowest f in the queue, ` +
       `so it is the most promising unfinished lead we have. ` +
@@ -204,7 +213,7 @@ function runAStar(city, startId, goalId, options = {}) {
         parent.set(neighbour, current);
         g.set(neighbour, tentativeG);
         open.addOrUpdate(neighbour, fN, tentativeG, hN);
-        heapProblem = heapProblem || open.checkInvariant();
+        if (record) heapProblem = heapProblem || open.checkInvariant();
 
         let text = wasKnown
           ? `Cheaper. ${num(tentativeG)} beats the ${num(previousG)} we had, so we ` +
