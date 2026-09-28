@@ -80,6 +80,31 @@ cheapest reached from. Watching those links flip is watching relaxation happen.
 
 ---
 
+## Compare with Dijkstra
+
+The **Compare with Dijkstra** button in the header splits the map in two. It is off
+by default — the demo is about A\*, and the comparison is an option rather than the
+main event.
+
+The right-hand pane is **not a second algorithm**. It is this same A\* run with the
+heuristic switched off (`weight: 0`), so `f = g`. That is verified, not asserted:
+across all 4160 start/goal pairs it produces an identical cost and an identical
+settled count to the independently written reference Dijkstra. The two panes really
+are running the same code, and the only difference is whether it is allowed to guess.
+
+The panes are synchronised on **expansion count, not event index**. The two searches
+emit different numbers of events, so matching indices would compare unrelated
+moments. Matching expansion counts asks the honest question: *after the same amount
+of work, how much ground has each one covered?*
+
+On the default route the difference is modest — that route saves only 18% and ranks
+3703rd of 4160 pairs for contrast, because the river forces any search to sweep the
+west bank. When the current route undersells the algorithm, compare mode offers a
+one-click switch to **Northbelt Mid → Eastbelt Mid**, where A\* finishes after 16
+intersections and Dijkstra needs 53 for the same optimal route — 70% less work.
+
+---
+
 ## How it works
 
 The single design decision everything else follows from:

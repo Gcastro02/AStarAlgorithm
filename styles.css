@@ -321,6 +321,8 @@ html, body {
   margin-left: 4px;
 }
 
+.topbar .compare-btn { margin-left: auto; }
+
 .stats b { color: var(--muted); font-weight: 600; }
 
 /* -- Map key (floated over the map) ----------------------------------------- */
@@ -869,7 +871,6 @@ input[type="range"]:focus-visible { box-shadow: 0 0 0 3px #2b558066; }
 /* -- Help overlay ------------------------------------------------------------ */
 
 .help-btn {
-  margin-left: auto;
   font: inherit;
   font-size: 11.5px;
   color: var(--heur);
@@ -954,3 +955,125 @@ input[type="range"]:focus-visible { box-shadow: 0 0 0 3px #2b558066; }
 
 .help-keys dt { font-family: var(--mono); color: var(--text); }
 .help-keys dd { margin: 0; color: var(--muted); }
+
+/* -- Compare mode ------------------------------------------------------------
+   Two maps side by side, stepping in lockstep on EXPANSION COUNT rather than
+   event index: the two searches emit different numbers of events, so matching
+   indices would compare unrelated moments. Matching expansion counts asks the
+   honest question -- after the same amount of work, how much ground has each
+   one covered? */
+
+.maps {
+  display: flex;
+  height: 100%;
+  gap: 1px;
+  background: var(--line);
+}
+
+.map-frame {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* Hidden until compare mode is entered. */
+.map-frame--b { display: none; }
+.map-pane.is-compare .map-frame--b { display: flex; }
+
+.map-caption { display: none; }
+
+.map-pane.is-compare .map-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 8px 14px 7px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.map-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.map-sub { font-size: 11px; color: var(--dim); }
+
+.map-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--open);
+  white-space: nowrap;
+}
+
+.map-frame--b .map-count { color: var(--closed); }
+
+.map-frame svg { flex: 1; min-height: 0; width: 100%; }
+
+/* The second map is a picture, not a control -- hovering it would drive panels
+   that describe the first map's state. */
+#map-b { pointer-events: none; }
+
+/* At half width the per-node f values and street labels are illegible noise,
+   and the comparison is about the SHAPE of the explored region anyway. */
+.map-pane.is-compare .node-f { display: none; }
+.map-pane.is-compare .map-label:not(.map-label--start):not(.map-label--goal) { display: none; }
+.map-pane.is-compare .h-line { display: none; }
+.map-pane.is-compare .map-key { display: none; }
+
+.compare-summary {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  max-width: min(760px, calc(100% - 28px));
+  padding: 10px 16px;
+  background: #101825f2;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  backdrop-filter: blur(3px);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+}
+
+.map-pane.is-compare .compare-summary { display: block; }
+
+.compare-summary strong { color: var(--text); }
+.compare-summary .win { color: var(--pathcol); font-weight: 700; }
+
+.compare-suggest {
+  display: inline-block;
+  margin-left: 8px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--heur);
+  background: #221c0d;
+  border: 1px solid #3a3118;
+  border-radius: 999px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.compare-suggest:hover { background: #2e2611; color: #f0c669; }
+
+.compare-btn {
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.compare-btn:hover { color: var(--text); background: #1f2b3d; }
+
+.compare-btn[aria-pressed="true"] {
+  color: var(--open);
+  background: #10283c;
+  border-color: #1f4a6b;
+  font-weight: 600;
+}

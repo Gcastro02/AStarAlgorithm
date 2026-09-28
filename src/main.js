@@ -29,6 +29,7 @@
 
   /* -- Element handles ----------------------------------------------------- */
   const svg = document.getElementById('map');
+  const svgB = document.getElementById('map-b');
   const mapPane = document.querySelector('.map-pane');
 
   const els = {
@@ -54,6 +55,10 @@
     pickStart: document.getElementById('btn-pick-start'),
     pickGoal: document.getElementById('btn-pick-goal'),
     routeReset: document.getElementById('btn-route-reset'),
+    countA: document.getElementById('count-a'),
+    countB: document.getElementById('count-b'),
+    compareSummary: document.getElementById('compare-summary'),
+    compareBtn: document.getElementById('compare-btn'),
   };
 
   const SHORT_LABEL = {
@@ -71,6 +76,10 @@
   let goalId = city.defaultGoal;
   let check = null;      // { events, result, reference, failures }
   let view = null;       // handles from renderCity
+  let compareMode = false;
+  let dijkstra = null;   // { events, result } from the same A* with weight 0
+  let dijkstraIndex = [];// expansion count -> event index
+  let viewB = null;      // handles for the second map
   let pinnedId = null;
   let hoveredId = null;
   let pickMode = null;   // 'start' | 'goal' | null
@@ -115,7 +124,42 @@
     els.queueCount.textContent = event.open.length
       ? `${event.open.length} waiting, sorted by f`
       : 'empty';
+
+    if (compareMode) paintCompare(event);
   };
+
+  /* -- Compare mode ---------------------------------------------------------
+     The follower map is painted at whichever of ITS events matches the leader's
+     expansion count, not its event index. */
+  function paintCompare(event) {
+    const target = settledCount(event);
+    const bEvent = eventAtExpansion(dijkstra.events, dijkstraIndex, target);
+    if (!bEvent) return;
+
+    paintEvent(viewB, city, bEvent, null);
+
+    els.countA.textContent = `${target} settled`;
+    els.countB.textContent = `${settledCount(bEvent)} settled`;
+
+    renderCompareSummary(
+      els.compareSummary, city, event, bEvent,
+      check.result, dijkstra.result, suggestionFor(startId, goalId)
+    );
+  }
+
+  /* A route worth showing the comparison on, offered when the current one is a
+     poor demonstration. Harbor Gate -> Summit Plaza saves only 18% and ranks
+     3703rd of 4160 pairs for contrast, because the river forces any search to
+     sweep the west bank; this pair saves ~70% and still crosses the river. */
+  const SUGGESTED = { start: 'ring_n2', goal: 'er2' };
+
+  function suggestionFor(s, g) {
+    if (s === SUGGESTED.start && g === SUGGESTED.goal) return null;
+    const saved = dijkstra.result.settled - check.result.settled;
+    const pct = dijkstra.result.settled ? 1 - check.result.settled / dijkstra.result.settled : 0;
+    /* Only nag when this route genuinely undersells the algorithm. */
+    return (saved < 20 || pct < 0.4) ? SUGGESTED : null;
+  }
 
   /* -- The player ----------------------------------------------------------- */
   const onChange = (event, index, api) => {
@@ -163,6 +207,21 @@
     }
 
     view = renderCity(svg, city, { startId, goalId });
+
+    /* Dijkstra is this same search with the heuristic switched off. Computed
+       eagerly -- a few hundred events -- so toggling compare mode is instant. */
+    dijkstra = runAStar(city, startId, goalId, { weight: 0 });
+    dijkstraIndex = buildExpansionIndex(dijkstra.events);
+    viewB = renderCity(svgB, city, { startId, goalId });
+
+    /* Both must agree on the cost, or one of them is lying to the viewer. */
+    if (check.result.found && dijkstra.result.found &&
+        Math.abs(check.result.cost - dijkstra.result.cost) > 1e-9) {
+      const msg = `Compare mode disagrees: A* ${check.result.cost.toFixed(2)} vs ` +
+                  `Dijkstra ${dijkstra.result.cost.toFixed(2)}`;
+      console.error(msg);
+      showProblems([msg]);
+    }
 
     els.stats.innerHTML =
       `<b>${city.nodes.length}</b> intersections &middot; <b>${city.edges.length}</b> roads &middot; ` +
@@ -292,6 +351,24 @@
     keyToggle.setAttribute('aria-expanded', String(!collapsed));
     keyToggle.textContent = collapsed ? 'Key ▸' : 'Key';
     keyToggle.blur();
+  });
+
+  /* -- Compare toggle ------------------------------------------------------ */
+  els.compareBtn.addEventListener('click', (ev) => {
+    compareMode = !compareMode;
+    mapPane.classList.toggle('is-compare', compareMode);
+    els.compareBtn.setAttribute('aria-pressed', String(compareMode));
+    els.compareBtn.textContent = compareMode ? 'Hide comparison' : 'Compare with Dijkstra';
+    if (compareMode) setPickMode(null);
+    repaint();
+    ev.currentTarget.blur();
+  });
+
+  /* The suggestion chip lives inside the summary, which is rebuilt on every
+     step, so it is handled by delegation rather than a direct listener. */
+  els.compareSummary.addEventListener('click', (ev) => {
+    if (!ev.target.closest('#compare-suggest')) return;
+    loadRoute(SUGGESTED.start, SUGGESTED.goal);
   });
 
   /* -- Help overlay --------------------------------------------------------- */

@@ -14,6 +14,7 @@
     <h1>A* Search</h1>
     <span class="sub">Finding the cheapest route across Riverford</span>
     <span class="stats" id="stats"></span>
+    <button class="compare-btn" id="compare-btn" type="button" aria-pressed="false">Compare with Dijkstra</button>
     <button class="help-btn" id="help-btn" type="button" aria-expanded="false">How to read this</button>
   </header>
 
@@ -45,6 +46,14 @@
       winning route starts by driving <em>away</em> from the goal, onto the fast
       belt road.</p>
 
+      <p><strong>Compare with Dijkstra.</strong> The button in the header splits the
+      map in two. The right-hand pane is not a different algorithm &mdash; it is
+      this same search with the heuristic switched off, so it sorts on
+      <span class="hl-g">g</span> alone. Both panes always show the <em>same number
+      of intersections settled</em>, so you are watching how each one spent the same
+      amount of work. Dijkstra spreads outward in all directions; A* stretches toward
+      the goal.</p>
+
       <dl class="help-keys">
         <dt>&larr; &rarr;</dt><dd>step back / forward</dd>
         <dt>space</dt><dd>play / pause</dd>
@@ -56,9 +65,33 @@
     </div>
   </div>
 
-  <main class="map-pane">
-    <svg id="map" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"
-         role="img" aria-label="Map of a fictional city with a river and two bridges"></svg>
+  <main class="map-pane" id="map-pane">
+
+    <div class="maps">
+      <figure class="map-frame">
+        <figcaption class="map-caption">
+          <span class="map-title">A*</span>
+          <span class="map-sub">sorts by g + h &mdash; uses the guess</span>
+          <span class="map-count" id="count-a"></span>
+        </figcaption>
+        <svg id="map" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"
+             role="img" aria-label="Map of a fictional city with a river and two bridges"></svg>
+      </figure>
+
+      <!-- Dijkstra is the same code with the heuristic switched off, so this
+           map is painted from an ordinary A* run with weight 0. -->
+      <figure class="map-frame map-frame--b" id="frame-b">
+        <figcaption class="map-caption">
+          <span class="map-title">Dijkstra</span>
+          <span class="map-sub">sorts by g alone &mdash; refuses to guess</span>
+          <span class="map-count" id="count-b"></span>
+        </figcaption>
+        <svg id="map-b" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"
+             role="img" aria-label="The same city searched by Dijkstra's algorithm"></svg>
+      </figure>
+    </div>
+
+    <div class="compare-summary" id="compare-summary"></div>
 
     <!-- Map key, floated over the map so the side column is free for the
          panels that change every step. Collapsible, because it necessarily

@@ -632,3 +632,59 @@ open questions.
 The report is drafted from this log, with every incident traceable to a commit or a
 measurement, and flagged at the top as a draft for the human to edit into their own
 voice — it is a report about their experience, not the AI's.
+
+---
+
+## Session 1 (cont.) — Phase 8: compare mode
+
+### Turn 14 — Design steer (human)
+
+Asked that the comparison be a toggle rather than a permanent layout change: A* alone
+by default, side-by-side available on demand.
+
+This was an improvement on the AI's proposal, which had treated compare mode as a
+layout decision to be made once. As a mode, the default view keeps the full-width map
+and loses nothing, and the comparison costs the main experience no screen space.
+
+### Turn 14 — Response (AI)
+
+Built it as a header toggle. Key implementation points:
+
+- **Dijkstra is the same code with `weight: 0`.** No second algorithm, no second
+  thing to keep in sync. Already verified equivalent to the independent reference
+  Dijkstra on all 4160 pairs.
+- **The panes synchronise on expansion count, not event index.** The two searches
+  emit different numbers of events (347 versus 401 on the default route), so matching
+  indices would compare unrelated moments. Matching expansion counts asks the
+  question that matters: after the same amount of work, how much ground has each
+  covered?
+- A runtime assertion fails loudly if the two ever disagree on cost.
+- In compare mode the per-node `f` labels, street labels and heuristic line are
+  hidden. At half width they are illegible, and the comparison is about the *shape*
+  of the explored region.
+- When the current route is a poor demonstration, the summary offers a one-click
+  switch to a route that is a good one.
+
+### Verification
+
+The synchronisation was the part most likely to be subtly wrong, so it was tested
+exhaustively rather than by inspection:
+
+- In-browser: the two panes report an identical settled count at **every one of the
+  route's events**, and stay identical after toggling off and back on, after a route
+  change, and while stepping by keyboard.
+- Headless: **715 route pairs, 120,062 individual per-event synchronisation checks,
+  zero drift and zero cost mismatches** between the two algorithms.
+
+### A false alarm worth recording
+
+A screenshot after switching routes appeared to show the layout collapsing — side
+panel and controls gone. The AI's first instinct was to treat it as a real
+regression, but it measured the DOM before changing anything: every element was
+exactly where it belonged (side pane at x=1220, width 380; controls at y=872). The
+capture tool was clipping to the map region, and the page was fine.
+
+Three viewport sizes later it was clear the screenshot tool, not the page, was at
+fault. Two things worth noting: the AI's inability to see its own output reliably has
+now cost time in three separate phases, and checking the measurement before "fixing"
+the phantom bug is what stopped it from damaging working code.
