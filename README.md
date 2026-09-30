@@ -198,6 +198,8 @@ Each city shows its **seed**, so a particular one can be returned to.
 
 - [`docs/design-spec.md`](docs/design-spec.md) — the design, written before the code,
   including the learning objectives each map feature exists to serve.
+- [`docs/transcript.md`](docs/transcript.md) — verbatim session transcript
+  (assignment deliverable 2).
 - [`docs/ai-log.md`](docs/ai-log.md) — log of AI tool use throughout (assignment
   deliverable 2).
 - [`docs/report.md`](docs/report.md) — experience report (assignment deliverable 3).

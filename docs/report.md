@@ -18,8 +18,12 @@ synchronised panels show the priority queue sorted by `f`, one intersection's `g
 arithmetic, a plain-English narration of the current step, and the pseudocode with the
 executing line highlighted.
 
+Two features were added after the core demo was working. A **compare mode** puts A\*
+beside Dijkstra on the same map, stepping in lockstep, and a **city generator**
+produces fresh maps on demand so the algorithms can be watched in different terrain.
+
 I worked with Claude (Opus 5) through Claude Code across a single extended session,
-in seven phases, reviewing and approving each phase before the next began.
+in nine phases, reviewing and approving each phase before the next began.
 
 ---
 
@@ -75,6 +79,24 @@ tags to keep "just open index.html" true; and when routes became re-runnable it
 reused the timeline player rather than rebuilding it, because rebuilding would have
 stacked a second document-level keyboard listener and made every arrow press step
 twice.
+
+**Reusing what already existed instead of writing something new.** Two good examples
+came late. Compare mode needed a second algorithm, and rather than implement Dijkstra
+a second time the AI ran the existing A\* with the heuristic weight set to zero —
+which *is* Dijkstra — and verified the equivalence against the independent reference
+implementation across all 4160 route pairs before relying on it. That also produced a
+better explanation than a bolted-on rival would have: the two panes are running the
+same code, and the only difference is whether it is allowed to guess.
+
+**The best single idea it had was the generator's quality gate.** Asked for a random
+map generator, it pointed out unprompted that a random graph almost always produces a
+*boring* search — with no obstacle between start and goal the heuristic is nearly
+exact and Dijkstra looks nearly as good — so randomising naively would have made the
+demo worse. Its solution was to generate a candidate, run the real A\* and the real
+Dijkstra on it, score whether the resulting search was worth watching, and throw the
+candidate away if not. Generate-and-test rather than trying to construct a good map
+directly. That reused the verification machinery built three phases earlier for a
+completely different purpose.
 
 ---
 
@@ -163,6 +185,17 @@ bottom 11%, because the river forces any search to sweep the west bank thoroughl
 The AI had generalised a headline claim from `n = 1`, and the claim was roughly half
 the real figure.
 
+This recurred in a different form when the generator was built. Its first working
+version accepted the *first* candidate city that cleared the quality bar, which meant
+quality was pinned to the threshold: average A\* margin 32%, and 2 of 40 attempts
+found nothing at all. Changing it to screen many candidates and keep the **best**
+raised the average to 50% and made all 60 attempts succeed. The flaw was invisible in
+the code, which looked entirely reasonable; it only appeared when the output
+distribution was measured rather than spot-checked.
+
+Both cases have the same shape: a design that is defensible in the abstract, and
+wrong in a way that only aggregate measurement reveals.
+
 ### 6. It got the highest-level design decision wrong
 
 At the very start the AI recommended a weighted terrain grid over a road network,
@@ -191,6 +224,40 @@ review, and then reintroduced the same error in a different display a phase late
 
 Minor in magnitude. Notable in direction.
 
+### 8. It cannot see its own output, and nearly "fixed" things that were not broken
+
+Three times across the project a screenshot appeared to show a serious defect — an
+interface flickering, a layout collapsing with the side panel gone, a generated river
+drawn as a short stub. In every case the page was fine and the preview tool was
+clipping or mid-render.
+
+The first of those cost real time. By the third, the AI had developed the right
+habit: measure the geometry before believing the picture. When the layout looked
+broken it queried the DOM and found every element exactly where it belonged; when the
+river looked truncated it called `getBBox()` and found the full 740-unit span. Had it
+trusted the images, it would have "repaired" working code three times.
+
+I take two things from this. The tool is genuinely unable to verify visual work
+reliably, which is a hard limit on the kinds of task it can finish alone. And the
+compensating discipline — convert the visual question into a numeric one — is the
+same discipline that found the *real* bugs.
+
+### 9. A defect it had written months of screenshots earlier
+
+While building the generator, the AI added a check that no two roads may cross
+without an intersection between them — necessary because a generator can easily
+produce such crossings. The check immediately failed on **the hand-authored map**:
+two roads had been overlapping at a single point since phase 1, with no junction
+there, present in every screenshot taken since.
+
+Its first fix moved a node and produced a *different* crossing. The real problem was
+topological rather than positional — a riverside road ran past a bridge head instead
+of meeting it — and only became clear after the second failure.
+
+The wider point is that this defect survived roughly a dozen rounds of human and AI
+review of the same map. It was found by a machine check written for an unrelated
+reason, which is an argument for writing the check even when nothing seems wrong.
+
 ---
 
 ## The pattern behind the failures
@@ -204,8 +271,15 @@ measurements generalised to.
 That has a practical consequence. Reviewing AI output by reading it is close to
 useless for this class of bug, because reading is precisely the check the output is
 optimised to pass. What worked was making the check **exhaustive** (all 347 events,
-all 4160 pairs) or **geometric** (compare bounding boxes, not appearances) or
-**embodied** (move an actual mouse).
+all 4160 route pairs, 120,062 synchronisation checks, 5692 routes across generated
+cities) or **geometric** (compare bounding boxes, not appearances) or **embodied**
+(move an actual mouse).
+
+There is a hopeful version of this too. Three times, a measurement the AI ran itself
+overturned a conclusion the AI had previously stated with confidence — the 18% claim,
+the generator's quality distribution, and the assumption that its own auto-scroll
+worked. It is not that the tool cannot find its own errors. It is that it will not
+find them by the kind of checking it reaches for by default.
 
 ---
 
@@ -235,6 +309,14 @@ The tool was most valuable as an extremely fast, extremely rigorous implementer 
 decisions that had already been made, and least reliable exactly where it appeared
 most confident — fluent code and fluent prose resting on unverified assumptions about
 context.
+
+That is not the whole picture, though, and the later phases complicated it. Given a
+fixed goal — "let people see a different map" — it produced a genuinely good design
+idea I would not have had: don't generate a map and hope, generate one, *run the real
+algorithm on it*, and throw it away if the resulting search is dull. It reused
+machinery built three phases earlier for an unrelated purpose to do it. So it is not
+purely an implementer. It is a weak judge of what to build and a strong designer of
+how, once what is settled.
 
 The step-by-step process is what made it work. Approving one phase at a time meant
 there was always something real to poke at, and poking at real things is how every
